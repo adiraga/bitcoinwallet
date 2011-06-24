@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Wallet Balance</string>
+    <string name="getbalance">Get Balance</string>
+    <string name="ready">Ready</string>
+    <string name="pastebin">pastebin id here</string>
+</resources>
