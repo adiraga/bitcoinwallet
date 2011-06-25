@@ -18,8 +18,14 @@
 <p>*Q* *How do I protect my addresses?*
 <p>*A* If you create a pastebin account then you can delete/modify/edit your addresses once you've placed them on pastebin.  Even if you don't create an account, you can mark the paste as private so it won't be searchable, and as long as nobody knows the pastebin hash, nobody can get your addresses
 
+<p>*Q* *Why should I worry about my addresses?*
+<p>*A* Although your addresses contain no information that would allow people to take your bitcoins, they do contain information that would allow people to track your transactions.  If you feel that your addresses have been compromised then you can always set up a new wallet and transfer your balance to that.
+
 <p>*Q** What should I type into the box in the application?*
-<p>*A* You need to type the pastebin 'hash' which is the sequence of letters and numbers that pastebin gives you.
+<p>*A* You need to type the pastebin 'hash' which is the sequence of letters and numbers that pastebin gives you. e.g. L3LfHRP8
+
+<p>*Q** But it's a real pain to enter the string!*
+<p>*A* Yes I know but you only need to do it once since it remembers the address.  Also, I'm working on adding QR code scanning support so you can quickly enter the address into your phone.
 
 <p>*Q* *The balance is showing as incorrect - what's the problem?*
 <p>*A* The balance can be wrong for several reasons:
