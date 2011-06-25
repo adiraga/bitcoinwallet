@@ -30,7 +30,7 @@
 <p>*A* Just wipe the application's storage by going to application manager, then 'Clear Data'.
 
 <p>*Q* *I have a cool idea for a new feature!*
-<p>*A* Please email me on will@phase.net with any suggestions you have
+<p>*A* Please email me on will@phase.net with any suggestions you have, or post on the bitcoin forum <a href="http://forum.bitcoin.org/index.php?topic=21969">here</a>.
 
 <p>*Q* *How can I donate to you?*
 <p>*A* Any donations, however small, are appreciated - just send them to 1NbXdG4Bu9LFpF3YNnT1LtZNqJroQrVqmg
