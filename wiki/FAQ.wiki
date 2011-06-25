@@ -1,0 +1,27 @@
+#summary Frequently asked questions
+
+<p>*Q* *What does this application do?*
+<p>*A* It allows you to view your balance on your android phone
+
+<p>*Q* *How does it work?*
+<p>*A* By using <a href="http://blockexplorer.com">blockexplorer</a> to query for transactions to/from your bitcoin addresses.
+
+<p>*Q* *So you need my addresses?*
+<p>*A* Yes, you need to export your addresses from your wallet for the tool to be able to work
+
+<p>*Q* *How do I export my addresses?*
+<p>*A* I provide a tool (written in C) that can parse the addresses from your wallet and print them out.  You can also download binary if you don't want to compile from source.
+
+<p>*Q* *How do I get my addresses to my Android phone?*
+<p>*A* You upload your addresses to pastebin, and the phone pulls them from there.
+
+<p>*Q* *How do I protect my addresses?*
+<p>*A* If you create a pastebin account then you can delete/modify/edit your addresses once you've placed them on pastebin.  Even if you don't create an account, you can mark the paste as private so it won't be searchable, and as long as nobody knows the pastebin hash, nobody can get your addresses
+
+<p>*Q** What should I type into the box in the application?*
+<p>*A* You need to type the pastebin 'hash' which is the sequence of letters and numbers that pastebin gives you.
+
+<p>*Q* *The balance is showing as incorrect - what's the problem?*
+<p>*A* The balance can be wrong for several reasons:
+  * either blockexplorer hasn't seen your transaction yet, this will happen for unconfirmed transactions (ones with 'unconfirmed/0' on them).  In addition, blockexplorer takes a few seconds after the first confirmation to database the transaction
+  * or, you have recently made a payment, and your bitcoin client has created a new address to receive the change (which it does, from time to time) and your bitcoins have been sent to one of these addresses.  In this case, you need to re-export your keys for the application to know where your bitcoins are.
