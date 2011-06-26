@@ -6,8 +6,11 @@
 <p>*Q* *How does it work?*
 <p>*A* By using <a href="http://blockexplorer.com">blockexplorer</a> to query for transactions to/from your bitcoin addresses.
 
+<p>*Q* *Does it update automatically?*
+<p>*A* Yes, it will update with your current balance within a few seconds of the block containing your transaction being solved.  *You only need to export your addresses once* (but see below).
+
 <p>*Q* *So you need my addresses?*
-<p>*A* Yes, you need to export your addresses from your wallet for the tool to be able to work
+<p>*A* Yes, you need to export your addresses from your wallet for the tool to be able to work.
 
 <p>*Q* *How do I export my addresses?*
 <p>*A* I provide a tool (written in C) that can parse the addresses from your wallet and print them out.  You can also download a binary from <a href="http://code.google.com/p/bitcoinwallet/downloads/list">here</a> if you don't want to compile from source.
