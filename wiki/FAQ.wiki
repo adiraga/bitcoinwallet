@@ -10,7 +10,7 @@
 <p>*A* Yes, you need to export your addresses from your wallet for the tool to be able to work
 
 <p>*Q* *How do I export my addresses?*
-<p>*A* I provide a tool (written in C) that can parse the addresses from your wallet and print them out.  You can also download binary if you don't want to compile from source.
+<p>*A* I provide a tool (written in C) that can parse the addresses from your wallet and print them out.  You can also download a binary from <a href="http://code.google.com/p/bitcoinwallet/downloads/list">here</a> if you don't want to compile from source.
 
 <p>*Q* *Why do I have to use your tool*
 <p>*A* Because bitcoin doesn't allow you to export all your addresses at the moment.  The developers are working on a <a href="https://github.com/bitcoin/bitcoin/pull/220">patch</a> to support it but until then it has to be done manually.
