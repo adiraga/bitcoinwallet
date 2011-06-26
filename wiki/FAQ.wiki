@@ -12,6 +12,12 @@
 <p>*Q* *How do I export my addresses?*
 <p>*A* I provide a tool (written in C) that can parse the addresses from your wallet and print them out.  You can also download binary if you don't want to compile from source.
 
+<p>*Q* *Why do I have to use your tool*
+<p>*A* Because bitcoin doesn't allow you to export all your addresses at the moment.  The developers are working on a <a href="https://github.com/bitcoin/bitcoin/pull/220">patch</a> to support it but until then it has to be done manually.
+
+<p>*Q* *Why can't I just copy all the addresses from bitcoin manually*
+<p>*A* Because when you spend bitcoins the change from the transaction is sent back to hidden pool addresses that the bitcoin client doesn't show in the main UI - if you only took the addresses from the UI then your balance would show as too low depending on how many bitcoin sends you have done.  If you have never sent any bitcoins from a wallet, then this method would work.
+
 <p>*Q* *How do I get my addresses to my Android phone?*
 <p>*A* You upload your addresses to pastebin, and the phone pulls them from there.
 
