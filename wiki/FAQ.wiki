@@ -3,11 +3,17 @@
 <p>*Q* *What does this application do?*
 <p>*A* It allows you to view your balance on your android phone
 
+<p>*Q* *Why would I want to use this?*
+<p>*A* Besides the obvious advantage of being able to view your balance while you are out and about, only the PUBLIC keys are required to view balance, so you can safely export them form your wallet, then store your wallet.dat in a secure place (e.g. encrypted media) while still being able to monitor for transactions on your wallet (e.g. your pool payments).  This means your bitcoins are more secure.
+
 <p>*Q* *How does it work?*
 <p>*A* By using <a href="http://blockexplorer.com">blockexplorer</a> to query for transactions to/from your bitcoin addresses.
 
 <p>*Q* *Does it update automatically?*
 <p>*A* Yes, it will update with your current balance within a few seconds of the block containing your transaction being solved.  *You only need to export your addresses once* (but see below).
+
+<p>*Q* *Couldn't I just go onto block explorer and type in my addresses?*
+<p>*A* Yes, but you wouldn't get your complete balance because of change transactions and outgoing payments.  Only by using all your addresses can you obtain an accurate balance.  Also it's a pain to have to type all your addresses into block explorer manually!
 
 <p>*Q* *So you need my addresses?*
 <p>*A* Yes, you need to export your addresses from your wallet for the tool to be able to work.
