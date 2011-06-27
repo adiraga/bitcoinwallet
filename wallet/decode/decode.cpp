@@ -132,7 +132,6 @@ void base58Decode( const unsigned char* buffer ) // input is 25 bytes long
 	outbuffer[--offset] = pszBase58[0];
 
 	addHit( outbuffer + offset );
-	addHit( outbuffer + offset );
 }
 
 // I heard you liked SHA-256 so I put a SHA-256 inside your SHA-256...
@@ -221,7 +220,7 @@ void decodeWallet( unsigned char* pBuffer, off_t size )
 			decodeAddress( key );
 		}
 	}
-
+	/** turns out we can't use these keys - we have to export ALL the public keys to have a reliable balance... TODO: optimise the android app to cope with this
 	// then find stored addresses (22 char long)
 	for ( offset = 0 ; offset < size - ( NAME_DATA_LENGTH + sizeof( nameSig ) ); offset++ )
 	{
@@ -243,9 +242,9 @@ void decodeWallet( unsigned char* pBuffer, off_t size )
 			addHit( name );
 		}
 	}
-
+	*/
 	//anything with a score >= 2 is probably a key we want
-	printKeys( 3 );
+	printKeys( 1 );
 }
 
 int main( int argc, char** argv )
