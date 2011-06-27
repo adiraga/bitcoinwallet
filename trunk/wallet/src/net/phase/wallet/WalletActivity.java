@@ -76,57 +76,59 @@ public class WalletActivity extends Activity implements OnClickListener, TextWat
 	
 	private String [] getHistory()
 	{
-		String [] historyItems = null;
-
+		ArrayList<String> historyList = new ArrayList<String>();
+		String [] result = null;
         SharedPreferences history = getPreferences(MODE_PRIVATE);
-        int number = history.getInt( "number", 0 );
-        if ( number > 0 )
+        int i = 0;
+        String hash = null;
+
+        while ( null != (hash = history.getString("hash" +i, null)) )
         {
-        	historyItems = new String[number];
-        	for (int i = 0; i < number; i ++ )
-        	{
-            	String hash = history.getString("hash"+i, ""); 
-            	if ( hash != null &&
-            	     hash.length() > 2 )
-            	{
-            		historyItems[i] = hash;
-            	}
-            }
+        	historyList.add( hash );
+        	i++;
+        };
+        
+        if ( historyList.size() > 0 )
+        {
+        	result = new String[ historyList.size() ];
+        	
+        	historyList.toArray( result );
         }
 
-        return historyItems;
+        return result;
 	}
 	
 	private void addHistory( String hash )
 	{
-		boolean found = false;
-		int number = 0;
-		String [] historyItems = getHistory();
-		
-		if ( historyItems != null )
+		if ( hash != null )
 		{
-			number = historyItems.length;
-
-			for ( String historyItem : historyItems )
+			boolean found = false;
+			int number = 0;
+			String [] historyItems = getHistory();
+			
+			if ( historyItems != null )
 			{
-				if ( historyItem.equals( hash ) )
+				number = historyItems.length;
+	
+				for ( String historyItem : historyItems )
 				{
-					found = true;
-					break;
+					if ( historyItem.equals( hash ) )
+					{
+						found = true;
+						break;
+					}
 				}
 			}
-		}
-		
-		if ( !found )
-		{
-	        SharedPreferences history = getPreferences(MODE_PRIVATE);
-	        Editor ed = history.edit();
-	        // add hash
-	        Log.i("history", "Adding hash "+number+" = " + hash);
-	        ed.putString("hash" + number, hash);
-	        // update number
-	        ed.putInt("number", number + 1 );
-	        ed.commit();
+			
+			if ( !found )
+			{
+		        SharedPreferences history = getPreferences(MODE_PRIVATE);
+		        Editor ed = history.edit();
+		        // add new hash at the end
+		        ed.putString("hash" + number, hash);
+		        // update number
+		        ed.commit();
+			}
 		}
 	}
 
@@ -279,7 +281,7 @@ class Balance implements Runnable
 
 	// number of transactions that can be queried from blockexplorer in each GET request
 	// this is limited by the maximum length of a GET request
-	private static final int MAX_LENGTH = 10;
+	private static final int MAX_LENGTH = 50;
 	// balance is number of microbitcoins (a millionth of a bitcoin)
 	private long balance;
 	private Handler updateHandler;
