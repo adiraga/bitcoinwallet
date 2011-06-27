@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 11.00
 # Visual Studio 2010
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "decode", "decode.vcxproj", "{742BFFB5-52DA-408E-E842-64F318B3B300}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "decode", "decode.vcxproj", "{93873962-7452-CB04-BA0A-20C9C61E7CF0}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -9,10 +9,10 @@ Global
 		Release|Win32 = Release|Win32
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{742BFFB5-52DA-408E-E842-64F318B3B300}.Debug|Win32.ActiveCfg = Debug|Win32
-		{742BFFB5-52DA-408E-E842-64F318B3B300}.Debug|Win32.Build.0 = Debug|Win32
-		{742BFFB5-52DA-408E-E842-64F318B3B300}.Release|Win32.ActiveCfg = Release|Win32
-		{742BFFB5-52DA-408E-E842-64F318B3B300}.Release|Win32.Build.0 = Release|Win32
+		{93873962-7452-CB04-BA0A-20C9C61E7CF0}.Debug|Win32.ActiveCfg = Debug|Win32
+		{93873962-7452-CB04-BA0A-20C9C61E7CF0}.Debug|Win32.Build.0 = Debug|Win32
+		{93873962-7452-CB04-BA0A-20C9C61E7CF0}.Release|Win32.ActiveCfg = Release|Win32
+		{93873962-7452-CB04-BA0A-20C9C61E7CF0}.Release|Win32.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
