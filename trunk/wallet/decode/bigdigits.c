@@ -72,7 +72,8 @@ static const int kUseNoAllocs = 0;
 #include <windows.h>
 void mpFail(char *msg)
 {
-	MessageBox(NULL, msg, "BigDigits Error", MB_ICONERROR);
+	// will@phase.net removed MessageBox
+//	MessageBox(NULL, msg, "BigDigits Error", MB_ICONERROR);
 	exit(EXIT_FAILURE);
 }
 #else	/* Ordinary console program */
