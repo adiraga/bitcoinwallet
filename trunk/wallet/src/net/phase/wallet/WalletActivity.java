@@ -46,6 +46,7 @@ import android.os.Handler;
 import android.os.Message;
 import android.text.Editable;
 import android.text.TextWatcher;
+import android.text.method.LinkMovementMethod;
 import android.util.Log;
 import android.view.View;
 import android.view.View.OnClickListener;
@@ -84,8 +85,9 @@ public class WalletActivity extends Activity implements OnClickListener, TextWat
         	historyItems = new String[number];
         	for (int i = 0; i < number; i ++ )
         	{
-            	String hash = history.getString("hash"+i, "");
-            	if ( hash.length() > 2 )
+            	String hash = history.getString("hash"+i, ""); 
+            	if ( hash != null &&
+            	     hash.length() > 2 )
             	{
             		historyItems[i] = hash;
             	}
@@ -135,18 +137,23 @@ public class WalletActivity extends Activity implements OnClickListener, TextWat
         super.onCreate(savedInstanceState);
         setContentView(R.layout.main);
 
+        button = (Button) findViewById( R.id.balanceButton );
+        button.setOnClickListener( this );
+
         AutoCompleteTextView ac = (AutoCompleteTextView) findViewById( R.id.AutoCompleteTextView1 );
         String [] history = getHistory();
-        if ( history != null )
+    	ac.setSingleLine();
+    	TextView helpText = (TextView) findViewById(R.id.textView2);
+    	helpText.setMovementMethod(LinkMovementMethod.getInstance());
+
+    	if ( history != null )
         {
+        	ac.setText( history[0] );
         	ArrayAdapter<String> adapter = new ArrayAdapter<String>( this, R.layout.list_item, history );
         	ac.setAdapter( adapter );
         	ac.setThreshold( 1 );
-        	ac.setText( history[0] );
+        	button.setEnabled( true );
         }
-                
-        button = (Button) findViewById( R.id.balanceButton );
-        button.setOnClickListener( this );
 
         ac.addTextChangedListener( this );
     }
@@ -154,38 +161,32 @@ public class WalletActivity extends Activity implements OnClickListener, TextWat
     @Override
     public void onClick( View v )
     {
-    	balance = new Balance( progressHandler );
-    	
     	EditText hashInput = (EditText) findViewById( R.id.AutoCompleteTextView1 );
+
+    	currentHash = hashInput.getText().toString();
     	
-    	try
+    	if ( currentHash != null )
     	{
-    		currentHash =  hashInput.getText().toString();
-	    	if ( balance.addKeysFromPasteBin( currentHash ) )
+        	balance = new Balance( progressHandler, currentHash );
+        	
+	    	try
 	    	{
 		    	dialog = new ProgressDialog( this );
 		    	dialog.setMessage( "Obtaining balance..." );
 		    	dialog.setProgressStyle( ProgressDialog.STYLE_HORIZONTAL );
-		    	dialog.setMax( balance.getNumberOfKeys() );
 		    	dialog.setProgress( 0 );
 		    	dialog.show();
 		    	
 		    	Thread t = new Thread( balance );
 		    	t.start();
 	    	}
-	    	else
+	    	catch (ParseException e)
 	    	{
-	    		toastMessage("Cannot find any keys at that URL");
+	    		toastMessage( "Could not parse keys");
 	    	}
     	}
-    	catch (IOException e)
-    	{
-    		toastMessage( "Network error");
-    	}
-    	catch (ParseException e)
-    	{
-    		toastMessage( "Could not parse keys");
-    	}
+
+    	button.setEnabled( true );
     }
 
     Handler progressHandler = new Handler() {
@@ -198,10 +199,24 @@ public class WalletActivity extends Activity implements OnClickListener, TextWat
     				break;
     			case Balance.MESSAGE_FINISHED:
     				dialog.dismiss();
-    				DecimalFormat df = new DecimalFormat("#.##");
-    				TextView t = (TextView) findViewById( R.id.textView1 );
-    				t.setText( "Your balance is " + df.format( balance.getFinalBalance() ) );
-    				addHistory( currentHash );
+    				switch (msg.arg1)
+    				{
+    					case Balance.MESSAGE_STATUS_SUCCESS:
+		    				DecimalFormat df = new DecimalFormat("#.###");
+		    				TextView t = (TextView) findViewById( R.id.textView1 );
+		    				t.setText( "Your balance is " + df.format( balance.getFinalBalance() ) );
+		    				addHistory( currentHash );
+    						break;
+    					case Balance.MESSAGE_STATUS_NETWORK:
+    						toastMessage("Network error");
+    						break;
+    					case Balance.MESSAGE_STATUS_NOKEYS:
+    						toastMessage("No keys at that location");
+    						break;
+    				}
+    				break;
+    			case Balance.MESSAGE_SETLENGTH:
+    				dialog.setMax( msg.arg1 );
     				break;
     		}
     	}
@@ -227,10 +242,11 @@ class tx
 {
 	public String hash;
 	public int rec;
-	public double value;
+	public long value;
 	
-	public tx( String hash, int rec, double value )
+	public tx( String hash, int rec, long value )
 	{
+		// value is number of microbitcoins (a millionth of a bitcoin)
 		this.hash = hash;
 		this.rec = rec;
 		this.value = value;
@@ -253,10 +269,21 @@ class Balance implements Runnable
 {
 	public static final int MESSAGE_UPDATE = 1;
 	public static final int MESSAGE_FINISHED = 2;
+	public static final int MESSAGE_SETLENGTH = 3;
 	
+	public static final int MESSAGE_STATUS_SUCCESS = 0;
+	public static final int MESSAGE_STATUS_NOKEYS = 1;
+	public static final int MESSAGE_STATUS_NETWORK = 2;
+
+	private static final String baseUrl = "http://blockexplorer.com/q/mytransactions/";
+
+	// number of transactions that can be queried from blockexplorer in each GET request
+	// this is limited by the maximum length of a GET request
 	private static final int MAX_LENGTH = 10;
-	private double balance;
+	// balance is number of microbitcoins (a millionth of a bitcoin)
+	private long balance;
 	private Handler updateHandler;
+	private String pastebinHash;
 	
 	private ArrayList<String> keys;
 	private ArrayList<String> transactions;
@@ -265,7 +292,7 @@ class Balance implements Runnable
 	
 	public double getFinalBalance()
 	{
-		return this.balance;
+		return ( this.balance / 1000000.0 ) ;
 	}
 	
 	public int getNumberOfKeys()
@@ -273,8 +300,9 @@ class Balance implements Runnable
 		return keys.size();
 	}
 
-	public Balance( Handler updateHandler )
+	public Balance( Handler updateHandler, String pastebinHash )
 	{
+		this.pastebinHash = pastebinHash;
 		this.balance = 0;
 		this.updateHandler = updateHandler;
 		keys = new ArrayList<String>();
@@ -323,7 +351,7 @@ class Balance implements Runnable
 		return foundakey;
 	}
 	
-	private double getTxValue( String hash, int rec )
+	private long getTxValue( String hash, int rec )
 	{
 		for (tx theTx : txs)
 		{
@@ -341,32 +369,54 @@ class Balance implements Runnable
 	{
 		balance = 0;
 		int i = 0;
-		StringBuffer url = new StringBuffer( "http://blockexplorer.com/q/mytransactions/");
+		StringBuffer url = new StringBuffer( baseUrl );
+		int status = 0;
 		
-		for ( String s : keys)
+		try
 		{
-			if ( ( i % MAX_LENGTH ) == (MAX_LENGTH - 1) )
+			if ( addKeysFromPasteBin( pastebinHash ) )
 			{
+				updateHandler.sendMessage( updateHandler.obtainMessage(MESSAGE_SETLENGTH, keys.size() + 1, 0 ) );
+				updateHandler.sendMessage( updateHandler.obtainMessage(MESSAGE_UPDATE ) );
+		
+				for ( String s : keys)
+				{
+					if ( ( i % MAX_LENGTH ) == (MAX_LENGTH - 1) )
+					{
+						updateBalanceFromUrl( url.substring(0, url.length() - 1 ) );
+		
+						url = new StringBuffer( baseUrl );
+					}
+		
+					url.append( s );
+					url.append('.');
+					i++;
+					updateHandler.sendMessage( updateHandler.obtainMessage(MESSAGE_UPDATE) );
+				}
+				
 				updateBalanceFromUrl( url.substring(0, url.length() - 1 ) );
 
-				url = new StringBuffer( "http://blockexplorer.com/q/mytransactions/" );
-			}
-
-			url.append( s );
-			url.append('.');
-			i++;
-			updateHandler.sendMessage( updateHandler.obtainMessage(MESSAGE_UPDATE) );
-		}
+				updateHandler.sendMessage( updateHandler.obtainMessage(MESSAGE_UPDATE) );
 		
-		updateBalanceFromUrl( url.substring(0, url.length() - 1 ) );
+				// look through previous transactions and debit payments
+				for ( prevout previousOut : pendingDebits )
+				{
+					balance -= getTxValue( previousOut.hash, previousOut.rec );
+				}
 
-		// look through previous transactions and debit payments
-		for ( prevout previousOut : pendingDebits )
+				status = MESSAGE_STATUS_SUCCESS;			
+			}
+			else
+			{
+				status = MESSAGE_STATUS_NOKEYS;			
+			}
+		}
+		catch (IOException e)
 		{
-			balance -= getTxValue( previousOut.hash, previousOut.rec );
+			status = MESSAGE_STATUS_NETWORK;			
 		}
 
-		updateHandler.sendMessage( updateHandler.obtainMessage(MESSAGE_FINISHED) );
+		updateHandler.sendMessage( updateHandler.obtainMessage(MESSAGE_FINISHED, status, 0 ) );			
 	}
 
 	private void updateBalanceFromUrl( String url )
@@ -383,6 +433,9 @@ class Balance implements Runnable
 			{
 				JSONObject resp = new JSONObject( EntityUtils.toString( response.getEntity() ) );
 				
+				// JSONObject.keys() returns Iterator<String> but for some reason
+				// isn't typed that way
+				@SuppressWarnings("unchecked")
 				Iterator<String> itr = resp.keys();
 				
 				// look through every transaction
@@ -427,7 +480,8 @@ class Balance implements Runnable
 						{
 							JSONObject outRecord = txsOut.getJSONObject( i );
 							String pubKeyHash = outRecord.getString("address");
-							double value = outRecord.getDouble( "value" );
+							// convert to microbitcoins for accuracy
+							long value = (long) ( outRecord.getDouble( "value" ) * 1000000.0 );
 							// store the out transaction, this is used later on
 							txs.add( new tx( txHash, i, value ) );
 
@@ -435,7 +489,6 @@ class Balance implements Runnable
 							if ( keys.contains( pubKeyHash ) )
 							{
 								balance += value;
-								Log.i("balance", "RECV " + value + ". Balance is now " + balance + "(" + pubKeyHash + ")" );
 							}
 						}
 					}
