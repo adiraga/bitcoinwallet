@@ -50,6 +50,7 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
 import android.text.format.DateFormat;
+import android.text.method.LinkMovementMethod;
 import android.util.Log;
 import android.view.ContextMenu;
 import android.view.ContextMenu.ContextMenuInfo;
@@ -404,12 +405,14 @@ public class WalletActivity extends Activity implements OnClickListener
 
     	LayoutInflater inflater = (LayoutInflater) getSystemService(LAYOUT_INFLATER_SERVICE);
     	View layout = inflater.inflate(R.layout.urlfetch_dialog, null );
+    	TextView tv = (TextView) layout.findViewById(R.id.pasteBinHelpText);
+    	tv.setMovementMethod(LinkMovementMethod.getInstance());
+
     	final EditText hashEditText = (EditText) layout.findViewById(R.id.hashEditText);
     	final EditText nameEditText = (EditText) layout.findViewById(R.id.nameEditText);
 
     	builder = new AlertDialog.Builder( this );
     	builder.setView(layout);
-    	builder.setCancelable(false);
     	builder.setPositiveButton("Ok", new DialogInterface.OnClickListener() {
             public void onClick(DialogInterface dialog, int id) {
                  String hash = hashEditText.getText().toString();
