@@ -4,7 +4,7 @@
 <p>*A* It allows you to view your balance on your android phone
 
 <p>*Q* *Why would I want to use this?*
-<p>*A* Besides the obvious advantage of being able to view your balance while you are out and about, only the PUBLIC keys are required to view balance, so you can safely export them form your wallet, then store your wallet.dat in a secure place (e.g. encrypted media) while still being able to monitor for transactions on your wallet (e.g. your pool payments).  This means your bitcoins are more secure.
+<p>*A* Besides the obvious advantage of being able to view your balance while you are out and about, only the PUBLIC keys are required to view balance, so you can safely export them form your wallet, then store your wallet.dat in a secure place (e.g. encrypted media) while still being able to monitor for transactions on your wallet (e.g. your pool payments).  This means your bitcoins are *more secure*.  In addition, simply retrieving the transactions uses *less bandwidth* and takes *less time* than using the bitcoin client.
 
 <p>*Q* *How does it work?*
 <p>*A* By using <a href="http://blockexplorer.com">blockexplorer</a> to query for transactions to/from your bitcoin addresses.
