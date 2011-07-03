@@ -44,7 +44,7 @@
 #ifndef __SHA2C_H__
 #define __SHA2C_H__
 
-#include <string>
+#include <string.h>
 #include <stdexcept>
 
 // NOTE: You may need to define things by hand for your system: 
