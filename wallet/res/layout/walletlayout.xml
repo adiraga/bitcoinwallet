@@ -14,5 +14,10 @@
 	        <Button android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_alignParentRight="true" android:text="Update" android:id="@+id/updateButton"></Button>
 	    </RelativeLayout>
 	</LinearLayout>
+	<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+	    android:layout_width="fill_parent"
+	    android:orientation="horizontal" android:layout_height="wrap_content" android:gravity="center_vertical">
 	<TextView android:layout_width="wrap_content" android:gravity="center" android:layout_height="wrap_content" android:id="@+id/lastUpdatedText" android:text="Last Updated:"></TextView>
+	<TextView android:layout_height="wrap_content" android:layout_width="wrap_content" android:text="TextView" android:layout_alignParentRight="true" android:id="@+id/infoText"></TextView>
+	</RelativeLayout>
 </LinearLayout>
