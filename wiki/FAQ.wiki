@@ -37,15 +37,12 @@
 <p>*A* You need to type the pastebin 'hash' which is the sequence of letters and numbers that pastebin gives you. e.g. L3LfHRP8
 
 <p>*Q** But it's a real pain to enter the string!*
-<p>*A* Yes I know but you only need to do it once since it remembers the address.  Also, I'm working on adding QR code scanning support so you can quickly enter the address into your phone.
+<p>*A* Yes I know but you only need to do it once since it remembers the address.  Also, I'm working on adding QR code scanning support so you can quickly enter the address into your phone.  Alternatively, you can copy the addresses to your phone's SD card and call them key_something.txt
 
 <p>*Q* *The balance is showing as incorrect - what's the problem?*
 <p>*A* The balance can be wrong for several reasons:
   * either blockexplorer hasn't seen your transaction yet, this will happen for unconfirmed transactions (ones with 'unconfirmed/0' on them).  In addition, blockexplorer takes a few seconds after the first confirmation to database the transaction
   * or, you have recently made a payment, and your bitcoin client has created a new address to receive the change (which it does, from time to time) and your bitcoins have been sent to one of these addresses.  In this case, you need to re-export your keys for the application to know where your bitcoins are.
-
-<p>*Q* *I've uploaded a new list of addresses and want to clear my history, how do I do that?*
-<p>*A* Just wipe the application's storage by going to application manager, then 'Clear Data'.
 
 <p>*Q* *I have a cool idea for a new feature!*
 <p>*A* Please email me on will@phase.net with any suggestions you have, or post on the bitcoin forum <a href="http://forum.bitcoin.org/index.php?topic=21969">here</a>.
