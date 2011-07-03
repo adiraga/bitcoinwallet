@@ -1,6 +1,7 @@
 
     <menu xmlns:android="http://schemas.android.com/apk/res/android"><item android:title="Add Wallet..." android:id="@+id/addItem"></item>
     <item android:id="@+id/optionsItem" android:title="Options"></item>
+    <item android:title="Refresh All" android:id="@+id/refreshAllItem"></item>
         
         
         

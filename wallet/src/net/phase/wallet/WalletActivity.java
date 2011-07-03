@@ -306,6 +306,7 @@ public class WalletActivity extends Activity implements OnClickListener
 {
 	private ProgressDialog dialog;
 	private Wallet[] wallets;
+	private int nextWallet = -1;
 
 	private void toastMessage( String message )
 	{
@@ -383,6 +384,16 @@ public class WalletActivity extends Activity implements OnClickListener
         {
         	view.removeAllViewsInLayout();
         }
+    }
+    
+    private void refreshAll()
+    {
+    	if ( wallets.length > 0 )
+    	{
+    		nextWallet = 1;
+    	}
+
+    	updateWalletBalance(wallets[0], true );
     }
 
     @Override
@@ -475,30 +486,28 @@ public class WalletActivity extends Activity implements OnClickListener
     		case R.id.addItem:
     			showDialog( 1 );
     			return true;
+    		case R.id.refreshAllItem:
+    			refreshAll();
+    			return true;
     		default:
     			return super.onOptionsItemSelected(item);
     	}
     }
 
-    public void updateWalletBalance( Wallet w, boolean fast)
+    public Thread updateWalletBalance( Wallet w, boolean fast)
     {
     	BalanceRetriever br = new BalanceRetriever( progressHandler, w, fast );
-        	
-    	try
-    	{
-	    	dialog = new ProgressDialog( this );
-	    	dialog.setMessage( "Obtaining balance..." );
-	    	dialog.setProgressStyle( ProgressDialog.STYLE_HORIZONTAL );
-	    	dialog.setProgress( 0 );
-	    	dialog.show();
-	    	
-	    	Thread t = new Thread( br );
-	    	t.start();
-    	}
-    	catch (ParseException e)
-    	{
-    		toastMessage( "Could not parse keys");
-    	}
+
+    	dialog = new ProgressDialog( this );
+    	dialog.setMessage( "Obtaining balance ("+w.name+")..." );
+    	dialog.setProgressStyle( ProgressDialog.STYLE_HORIZONTAL );
+    	dialog.setProgress( 0 );
+    	dialog.show();
+    	
+    	Thread t = new Thread( br );
+    	t.start();
+    	
+    	return t;
     }
 
     public void removeWallet( String name )
@@ -535,7 +544,17 @@ public class WalletActivity extends Activity implements OnClickListener
     				switch (msg.arg1)
     				{
     					case BalanceRetriever.MESSAGE_STATUS_SUCCESS:
-    						updateWalletList();
+    						// code to refresh all wallets
+    						if ( nextWallet > 0 && nextWallet < wallets.length )
+    						{
+    							updateWalletBalance(wallets[nextWallet], false );
+    							nextWallet++;
+    						}
+    						else
+    						{
+        						updateWalletList();
+    							nextWallet = -1;
+    						}
     						break;
     					case BalanceRetriever.MESSAGE_STATUS_NETWORK:
     						toastMessage("Network error");
