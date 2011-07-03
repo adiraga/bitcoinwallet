@@ -1,0 +1,7 @@
+
+    <menu xmlns:android="http://schemas.android.com/apk/res/android"><item android:id="@+id/updateItem" android:title="Force Update"></item><item android:id="@+id/editItem" android:title="Edit..."></item>
+        
+    <item android:id="@+id/removeItem" android:title="Delete..."></item>
+        
+        
+    </menu>

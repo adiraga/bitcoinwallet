@@ -1,13 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<TableLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/topTableLayout"
     android:orientation="vertical"
     android:layout_width="fill_parent"
     android:layout_height="fill_parent"
-    >
-    <TextView android:id="@+id/textView2" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textAppearance="?android:attr/textAppearanceSmall" android:text="@string/help_text"></TextView>
-    <AutoCompleteTextView android:layout_height="wrap_content" android:layout_width="fill_parent" android:id="@+id/AutoCompleteTextView1" android:maxLines="1">
-        <requestFocus></requestFocus>
-    </AutoCompleteTextView>
-    <Button android:layout_height="wrap_content" android:layout_width="wrap_content" android:text="@string/getbalance" android:id="@+id/balanceButton" android:enabled="false"></Button>
-    <TextView android:id="@+id/textView1" android:textAppearance="?android:attr/textAppearanceMedium" android:layout_width="fill_parent" android:layout_gravity="top" android:layout_height="wrap_content" android:text="@string/ready"></TextView>
-</LinearLayout>
+    android:background="#FFFFFF">
+    <ListView android:layout_height="wrap_content" android:layout_width="fill_parent" android:id="@+id/walletListView"></ListView>
+</TableLayout>
