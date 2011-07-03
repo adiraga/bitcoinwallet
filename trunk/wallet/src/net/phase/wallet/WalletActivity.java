@@ -17,6 +17,9 @@
 package net.phase.wallet;
 
 import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileFilter;
+import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
@@ -47,6 +50,7 @@ import android.content.Context;
 import android.content.DialogInterface;
 import android.graphics.Color;
 import android.os.Bundle;
+import android.os.Environment;
 import android.os.Handler;
 import android.os.Message;
 import android.text.format.DateFormat;
@@ -62,10 +66,12 @@ import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
 import android.widget.BaseAdapter;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ListView;
+import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -129,14 +135,59 @@ class Wallet
 			}
 		}
 	}
-	// 
+
+	private boolean fillFromReader( BufferedReader bin ) throws IOException, ParseException
+	{
+		ArrayList<Key> keysArray = new ArrayList<Key>();
+		String keyHash;
+		boolean foundKey = false;
+
+		while ( ( keyHash = bin.readLine() ) != null )
+		{
+			if ( keyHash.startsWith("1") && ( keyHash.length() == 33 || keyHash.length() == 34 ) )
+			{
+				keysArray.add( new Key( keyHash ) );
+				foundKey = true;
+			}
+			else
+			{
+				throw new ParseException("Invalid Key");
+			}
+		}
+		
+		if ( foundKey )
+		{
+			keys = new Key[ keysArray.size() ];
+			keysArray.toArray( keys );
+			lastUpdated = new Date();
+			balance = 0;
+		}
+		
+		return foundKey;
+	}
+
+	public Wallet(String name, File file) throws IOException
+	{
+		this.name = name;
+		boolean foundKey = false;
+		BufferedReader in = new BufferedReader( new FileReader( file ) );
+		
+		foundKey = fillFromReader( in );
+
+		in.close();
+
+		if ( !foundKey )
+		{
+			throw new ParseException("Did not find any keys");
+		}
+	}
+
 	public Wallet(String name, URI url) throws IOException, ParseException
 	{
 		this.name = name;
-		ArrayList<Key> keysArray = new ArrayList<Key>();
 		HttpClient client = new DefaultHttpClient();
 		HttpGet hg = new HttpGet( url );
-		boolean foundakey = false;
+		boolean foundKey = false;
 
 		HttpResponse resp;
 		resp = client.execute( hg );
@@ -146,21 +197,7 @@ class Wallet
 			
 			if ( entity != null )
 			{
-				String keyHash;
-				BufferedReader bin = new BufferedReader( new InputStreamReader( entity.getContent() ) );
-				
-				while ( ( keyHash = bin.readLine() ) != null )
-				{
-					if ( keyHash.startsWith("1") && ( keyHash.length() == 33 || keyHash.length() == 34 ) )
-					{
-						keysArray.add( new Key( keyHash ) );
-						foundakey = true;
-					}
-					else
-					{
-						throw new ParseException("Invalid Key");
-					}
-				}
+				foundKey = fillFromReader( new BufferedReader( new InputStreamReader( entity.getContent() ) ) );
 			}
 			else
 			{
@@ -172,14 +209,7 @@ class Wallet
 			throw new ParseException("Did not get 200 OK");
 		}
 		
-		if ( foundakey )
-		{
-			keys = new Key[ keysArray.size() ];
-			keysArray.toArray( keys );
-			lastUpdated = new Date();
-			balance = 0;
-		}
-		else
+		if ( !foundKey )
 		{
 			throw new ParseException("Did not find any keys");
 		}
@@ -307,6 +337,8 @@ public class WalletActivity extends Activity implements OnClickListener
 	private ProgressDialog dialog;
 	private Wallet[] wallets;
 	private int nextWallet = -1;
+	private static final int DIALOG_URL	= 1;
+	private static final int DIALOG_FILE = 2;
 
 	private void toastMessage( String message )
 	{
@@ -382,18 +414,25 @@ public class WalletActivity extends Activity implements OnClickListener
         }
         else
         {
-        	view.removeAllViewsInLayout();
+            setContentView( R.layout.main );
         }
     }
     
-    private void refreshAll()
+    private void updateAll()
     {
-    	if ( wallets.length > 0 )
+    	if ( wallets != null )
     	{
-    		nextWallet = 1;
+	    	if ( wallets.length > 0 )
+	    	{
+	    		nextWallet = 1;
+	    	}
+	
+	    	updateWalletBalance(wallets[0], true );
     	}
-
-    	updateWalletBalance(wallets[0], true );
+    	else
+    	{
+    		toastMessage("No wallets to update!");
+    	}
     }
 
     @Override
@@ -413,49 +452,134 @@ public class WalletActivity extends Activity implements OnClickListener
     	inflater.inflate(R.menu.walletmenu, menu );
     }
 
+    FileFilter fileFilter = new FileFilter()
+    {
+		@Override
+		public boolean accept(File pathname)
+		{
+			if ( pathname.getName().startsWith("key") && 
+				 pathname.getName().endsWith(".txt") )
+			{
+				return true;
+			}
+			return false;
+		}
+    };
+
+    protected void onPrepareDialog( int id, Dialog dialog )
+    {
+    	switch ( id )
+    	{
+	    	case DIALOG_URL:
+		    	TextView tv = (TextView) dialog.findViewById(R.id.pasteBinHelpText);
+		    	tv.setMovementMethod(LinkMovementMethod.getInstance());
+		
+		    	break;
+	    	case DIALOG_FILE:
+		    	TextView tvhelp = (TextView) dialog.findViewById(R.id.helpText);
+		    	tvhelp.setMovementMethod(LinkMovementMethod.getInstance());
+		
+		    	Spinner fileSpinner = (Spinner) dialog.findViewById(R.id.fileInput);
+		    	
+		    	File [] files = Environment.getExternalStorageDirectory().listFiles( fileFilter );
+		    	
+		    	if ( files == null || files.length == 0 )
+		    	{
+		    		toastMessage("No files found on sdcard");
+		    	}
+		    	else
+		    	{
+			    	ArrayAdapter<File> adapter = new ArrayAdapter<File>( this, android.R.layout.simple_spinner_item, files );
+			    	fileSpinner.setAdapter( adapter );
+		    	}			    	
+		    	break;
+    	}
+    }
+
     protected Dialog onCreateDialog( int id )
     {
     	AlertDialog.Builder builder;
     	AlertDialog alertDialog;
-
-    	LayoutInflater inflater = (LayoutInflater) getSystemService(LAYOUT_INFLATER_SERVICE);
-    	View layout = inflater.inflate(R.layout.urlfetch_dialog, null );
-    	TextView tv = (TextView) layout.findViewById(R.id.pasteBinHelpText);
-    	tv.setMovementMethod(LinkMovementMethod.getInstance());
-
-    	final EditText hashEditText = (EditText) layout.findViewById(R.id.hashEditText);
-    	final EditText nameEditText = (EditText) layout.findViewById(R.id.nameEditText);
-
     	builder = new AlertDialog.Builder( this );
-    	builder.setView(layout);
-    	builder.setPositiveButton("Ok", new DialogInterface.OnClickListener() {
-            public void onClick(DialogInterface dialog, int id) {
-                 String hash = hashEditText.getText().toString();
-                 String name = nameEditText.getText().toString();
-                 
-                 if ( !hash.startsWith("http") )
-                 {
-                	 hash = "http://pastebin.com/raw.php?i=" + hash;
-                 }
+    	LayoutInflater inflater = (LayoutInflater) getSystemService(LAYOUT_INFLATER_SERVICE);
+    	View layout = null;
+    	
+    	switch ( id )
+    	{
+	    	case DIALOG_URL:
+		    	layout = inflater.inflate(R.layout.urlfetch_dialog, null );
+		    	
+		    	TextView tv = (TextView) layout.findViewById(R.id.pasteBinHelpText);
+		    	tv.setMovementMethod(LinkMovementMethod.getInstance());
+		
+		    	final EditText hashEditText = (EditText) layout.findViewById(R.id.hashEditText);
+		    	final EditText nameEditText = (EditText) layout.findViewById(R.id.nameEditText);
+		
+		    	builder.setView(layout);
+		    	builder.setPositiveButton("Ok", new DialogInterface.OnClickListener() {
+		            public void onClick(DialogInterface dialog, int id) {
+		                 String hash = hashEditText.getText().toString();
+		                 String name = nameEditText.getText().toString();
+		                 
+		                 if ( !hash.startsWith("http") )
+		                 {
+		                	 hash = "http://pastebin.com/raw.php?i=" + hash;
+		                 }
+		
+		                 try
+		                 {
+		                	 Wallet w = new Wallet(name, new URI( hash ) );
+		                	 addWallet( w );
+		                 }
+		                 catch (Exception e)
+		                 {
+		                	 toastMessage(e.getMessage());
+		                 }
+		            }
+		        });
+		    	builder.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
+		           public void onClick(DialogInterface dialog, int id) {
+		                dialog.cancel();
+		           }
+		       });
+		    	break;
+	    	case DIALOG_FILE:
+		    	layout = inflater.inflate(R.layout.file_dialog, null );
+		    	
+		    	TextView tvhelp = (TextView) layout.findViewById(R.id.helpText);
+		    	tvhelp.setMovementMethod(LinkMovementMethod.getInstance());
+		
+		    	final Spinner fileSpinner = (Spinner) layout.findViewById(R.id.fileInput);
+		    	final EditText nameEditText2 = (EditText) layout.findViewById(R.id.nameEditText);
+		    	
+		    	builder.setView(layout);
+		    	builder.setPositiveButton("Ok", new DialogInterface.OnClickListener() {
+		            public void onClick(DialogInterface dialog, int id) {
+		                 File filename = (File) fileSpinner.getSelectedItem();
+		                 String name = nameEditText2.getText().toString();
+		                 
+		                 try
+		                 {
+		                	 Wallet w = new Wallet(name, filename );
+		                	 addWallet( w );
+		                 }
+		                 catch (Exception e)
+		                 {
+		                	 toastMessage(e.getMessage());
+		                 }
+		            }
+		        });
 
-                 try
-                 {
-                	 Wallet w = new Wallet(name, new URI( hash ) );
-                	 addWallet( w );
-                 }
-                 catch (Exception e)
-                 {
-                	 toastMessage(e.getMessage());
-                 }
-            }
-        });
-    	builder.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
-           public void onClick(DialogInterface dialog, int id) {
-                dialog.cancel();
-           }
-       });
+		    	builder.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
+		           public void onClick(DialogInterface dialog, int id) {
+		                dialog.dismiss();
+		           }
+		       });
+		    	break;
+    	}
+
     	alertDialog = builder.create();
-    
+
     	return alertDialog;
     }
 
@@ -483,11 +607,14 @@ public class WalletActivity extends Activity implements OnClickListener
     {
     	switch (item.getItemId())
     	{
-    		case R.id.addItem:
-    			showDialog( 1 );
+    		case R.id.importURL:
+    			showDialog( DIALOG_URL );
     			return true;
-    		case R.id.refreshAllItem:
-    			refreshAll();
+    		case R.id.importFile:
+    			showDialog( DIALOG_FILE );
+    			return true;
+    		case R.id.updateAllItem:
+    			updateAll();
     			return true;
     		default:
     			return super.onOptionsItemSelected(item);
@@ -512,19 +639,22 @@ public class WalletActivity extends Activity implements OnClickListener
 
     public void removeWallet( String name )
     {
+    	Wallet [] newWallets = null;
+
     	if ( wallets.length == 1 )
     	{
     		wallets = null;
     		updateWalletList();
-    		return;
     	}
-
-    	Wallet [] newWallets = new Wallet[ wallets.length - 1];
-    	int i = 0;
-    	for (Wallet wallet : wallets )
+    	else
     	{
-    		if (!wallet.name.equals(name))
-    			newWallets[i++] = wallet;
+	    	newWallets = new Wallet[ wallets.length - 1];
+	    	int i = 0;
+	    	for (Wallet wallet : wallets )
+	    	{
+	    		if (!wallet.name.equals(name))
+	    			newWallets[i++] = wallet;
+	    	}
     	}
     	// delete the wallet file
     	deleteFile( name );
