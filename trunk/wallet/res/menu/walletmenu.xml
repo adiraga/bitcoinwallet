@@ -1,7 +1,8 @@
 
-    <menu xmlns:android="http://schemas.android.com/apk/res/android"><item android:id="@+id/updateItem" android:title="Force Update"></item><item android:id="@+id/editItem" android:title="Edit..."></item>
+    <menu xmlns:android="http://schemas.android.com/apk/res/android"><item android:id="@+id/updateItem" android:title="Force Update"></item><item android:title="Rename" android:id="@+id/renameItem"></item>
         
-    <item android:id="@+id/removeItem" android:title="Delete..."></item>
+    
+    <item android:title="View" android:id="@+id/viewItem"></item><item android:title="Remove" android:id="@+id/removeItem"></item>
         
         
     </menu>

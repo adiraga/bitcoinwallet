@@ -363,10 +363,10 @@ public class WalletActivity extends Activity implements OnClickListener
 
     public void updateWalletList()
     {
+        ListView view = (ListView) findViewById( R.id.walletListView );
+
         if ( wallets != null )
         {
-            ListView view = (ListView) findViewById( R.id.walletListView );
-
 	        WalletAdapter adapter = new WalletAdapter( this, wallets );
 	        view.setAdapter( adapter );
 	        registerForContextMenu( view );
@@ -378,6 +378,10 @@ public class WalletActivity extends Activity implements OnClickListener
 	        {
 	        	toastMessage("Unable to save wallet data " + e.getMessage());
 	        }
+        }
+        else
+        {
+        	view.removeAllViewsInLayout();
         }
     }
 
@@ -447,11 +451,16 @@ public class WalletActivity extends Activity implements OnClickListener
     @Override
     public boolean onContextItemSelected(MenuItem item)
     {
+    	AdapterView.AdapterContextMenuInfo info = (AdapterView.AdapterContextMenuInfo) item.getMenuInfo();
+
     	switch (item.getItemId())
     	{
     		case R.id.updateItem:
-    	    	AdapterView.AdapterContextMenuInfo info = (AdapterView.AdapterContextMenuInfo) item.getMenuInfo();
     			updateWalletBalance( wallets[info.position], false );
+    			return true;
+       		case R.id.removeItem:
+    			removeWallet( wallets[info.position].name );
+    			updateWalletList();
     			return true;
     		default:
     			return super.onOptionsItemSelected(item);
@@ -490,6 +499,27 @@ public class WalletActivity extends Activity implements OnClickListener
     	{
     		toastMessage( "Could not parse keys");
     	}
+    }
+
+    public void removeWallet( String name )
+    {
+    	if ( wallets.length == 1 )
+    	{
+    		wallets = null;
+    		updateWalletList();
+    		return;
+    	}
+
+    	Wallet [] newWallets = new Wallet[ wallets.length - 1];
+    	int i = 0;
+    	for (Wallet wallet : wallets )
+    	{
+    		if (!wallet.name.equals(name))
+    			newWallets[i++] = wallet;
+    	}
+    	// delete the wallet file
+    	deleteFile( name );
+    	wallets = newWallets;
     }
 
     Handler progressHandler = new Handler() {
