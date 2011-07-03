@@ -268,6 +268,22 @@ class Wallet
 			out.close();
 		}
 	}
+	
+	public int getActiveKeyCount()
+	{
+		int count = 0;
+		
+		for (Key k : keys)
+		{
+			if ( k.hit > 0 )
+				count++;
+		}
+
+		if ( count == 0 )
+			count = keys.length;
+
+		return count;
+	}
 }
 
 
@@ -324,6 +340,12 @@ class WalletAdapter extends BaseAdapter
 		lastUpdatedTextView.setTextColor( Color.GRAY );
 		lastUpdatedTextView.setTextSize( 8 );
 		lastUpdatedTextView.setText( "Last Updated: " + DateFormat.format("MM/dd/yy h:mmaa", wallets[position].lastUpdated ) );
+
+		TextView infoTextView = (TextView) v.findViewById(R.id.infoText );
+		
+		infoTextView.setTextColor( Color.GRAY );
+		infoTextView.setTextSize( 8 );
+		infoTextView.setText( wallets[position].keys.length + " keys (" + wallets[position].getActiveKeyCount() +" in use)" );
 
 		Button button = (Button) v.findViewById(R.id.updateButton);
 		button.setTag(position);
@@ -628,6 +650,10 @@ public class WalletActivity extends Activity implements OnClickListener
     	dialog = new ProgressDialog( this );
     	dialog.setMessage( "Obtaining balance ("+w.name+")..." );
     	dialog.setProgressStyle( ProgressDialog.STYLE_HORIZONTAL );
+    	if ( fast )
+    		dialog.setMax( w.getActiveKeyCount() + 1 );
+    	else
+    		dialog.setMax( w.keys.length + 1 );
     	dialog.setProgress( 0 );
     	dialog.show();
     	
@@ -835,7 +861,14 @@ class BalanceRetriever implements Runnable
 
 		try
 		{
-			updateHandler.sendMessage( updateHandler.obtainMessage(MESSAGE_SETLENGTH, wallet.keys.length + 1, 0 ) );
+			int numberOfKeys = wallet.keys.length;
+
+			if ( fast )
+			{
+				numberOfKeys = wallet.getActiveKeyCount();
+			}
+
+			updateHandler.sendMessage( updateHandler.obtainMessage(MESSAGE_SETLENGTH, numberOfKeys + 1, 0 ) );
 			updateHandler.sendMessage( updateHandler.obtainMessage(MESSAGE_UPDATE ) );
 	
 			for ( Key key : wallet.keys)
@@ -851,8 +884,8 @@ class BalanceRetriever implements Runnable
 				{
 					url.append( key.hash );
 					url.append('.');
+					i++;
 				}
-				i++;
 				updateHandler.sendMessage( updateHandler.obtainMessage(MESSAGE_UPDATE) );
 			}
 			
