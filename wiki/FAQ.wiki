@@ -1,5 +1,7 @@
 #summary Frequently asked questions
 
+=== If you are looking for a quick start guide to using the Wallet Balance Viewer go <a href="http://code.google.com/p/bitcoinwallet/wiki/Using">here</a>, otherwise read on... ===
+
 <p>*Q* *What does this application do?*
 <p>*A* It allows you to view your bitcoin balance on your Android phone.
 
