@@ -46,8 +46,9 @@
 
 <p>*Q* *The balance is showing as incorrect - what's the problem?*
 <p>*A* The balance can be wrong for several reasons:
-  * either blockexplorer hasn't seen your transaction yet, this will happen for unconfirmed transactions (ones with 'unconfirmed/0' on them).  In addition, blockexplorer takes a few seconds after the first confirmation to database the transaction
-  * or, you have recently made a payment, and your bitcoin client has created a new address to receive the change (which it does, from time to time) and your bitcoins have been sent to one of these addresses.  In this case, you need to re-export your keys for the application to know where your bitcoins are.
+  * either blockexplorer hasn't seen your transaction yet, this will happen for unconfirmed transactions (ones with 'unconfirmed/0' on them).  In addition, blockexplorer takes a few seconds after the first confirmation to database the transaction.
+  * or, you have recently made a payment, then try forcing an update by long clicking on your wallet and clicking *Force Update*.  This makes the app query all your public keys and not just the ones with active transactions.
+  * If all else fails, it's possible that your bitcoin client has created a new address to receive the change (which it does, from time to time) and your bitcoins have been sent to one of these addresses.  In this case, you need to re-export your keys for the application to know where your bitcoins are.
 
 <p>*Q* *I have a cool idea for a new feature!*
 <p>*A* Please email me on will@phase.net with any suggestions you have, or post on the bitcoin forum <a href="http://forum.bitcoin.org/index.php?topic=21969">here</a>.
