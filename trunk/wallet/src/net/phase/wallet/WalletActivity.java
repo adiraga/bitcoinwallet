@@ -124,15 +124,20 @@ class Transaction implements Parcelable, Comparable<Transaction>
 
 	protected static Date latest( Transaction [] transactions )
 	{
+		Date result = null;
+
 		if ( transactions != null && transactions.length > 0 )
 		{
-			Arrays.sort( transactions );
-			return transactions[0].date;
+			for (Transaction t : transactions)
+			{
+				if (result == null || result.before( t.date ) )
+				{
+					result = t.date;
+				}
+			}
 		}
-		else
-		{
-			return null;
-		}
+
+		return result;
 	}
 
 	private void addTransaction( Transaction tx )
@@ -682,7 +687,7 @@ public class WalletActivity extends Activity implements OnClickListener
 		@Override
 		public boolean accept(File pathname)
 		{
-			if ( pathname.getName().startsWith("key") && 
+			if ( pathname.getName().contains("key") && 
 				 pathname.getName().endsWith(".txt") )
 			{
 				return true;
