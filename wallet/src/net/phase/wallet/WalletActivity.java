@@ -124,8 +124,15 @@ class Transaction implements Parcelable, Comparable<Transaction>
 
 	protected static Date latest( Transaction [] transactions )
 	{
-		Arrays.sort( transactions );
-		return transactions[0].date;
+		if ( transactions != null && transactions.length > 0 )
+		{
+			Arrays.sort( transactions );
+			return transactions[0].date;
+		}
+		else
+		{
+			return null;
+		}
 	}
 
 	private void addTransaction( Transaction tx )
@@ -251,6 +258,7 @@ class Wallet
 	public Transaction [] transactions;
 	private int version;
 	
+	private final static int LEGACY_VERSION = 1;
 	private final static int TRANSACTIONS_ADDED_VERSION = 2;
 	private final static int CURRENT_VERSION = 2;
 	
@@ -377,7 +385,7 @@ class Wallet
 		}
 		else
 		{
-			version = 1;
+			version = LEGACY_VERSION;
 		}
 		balance = Long.parseLong( in.readLine() );
 		lastUpdated = new Date(in.readLine());
@@ -529,7 +537,7 @@ class WalletAdapter extends BaseAdapter
 		txInfoTextView.setTextColor( Color.GRAY );
 		txInfoTextView.setTextSize( 8 );
 		
-		if ( wallets[position].transactions != null )
+		if ( wallets[position].transactions != null && wallets[position].transactions.length > 0 )
 		{
 			txLastUpdatedTextView.setText( "Last Transaction: " + DateFormat.format("MM/dd/yy h:mmaa", Transaction.latest( wallets[position].transactions ) ) );
 			txInfoTextView.setText( wallets[position].transactions.length + " transactions ("+Transaction.compressTransactions(wallets[position].transactions).length+" unique)" );
@@ -827,7 +835,7 @@ public class WalletActivity extends Activity implements OnClickListener
        		case R.id.viewItem:
        			if ( wallets[info.position].transactions == null )
        			{
-       				toastMessage("Update first");
+       				toastMessage("Please update wallet first");
        			}
        			else
        			{
@@ -852,6 +860,9 @@ public class WalletActivity extends Activity implements OnClickListener
     			return true;
     		case R.id.updateAllItem:
     			updateAll();
+    			return true;
+    		case R.id.optionsItem:
+    			toastMessage("Options coming soon...");
     			return true;
     		default:
     			return super.onOptionsItemSelected(item);
@@ -959,7 +970,14 @@ public class WalletActivity extends Activity implements OnClickListener
 		}
 		else
 		{
-			showTransactions(wallets[i]);
+   			if ( wallets[i].transactions == null )
+   			{
+   				toastMessage("Please update wallet");
+   			}
+   			else
+   			{
+   				showTransactions(wallets[i]);
+   			}
    		}
 	}
 }
