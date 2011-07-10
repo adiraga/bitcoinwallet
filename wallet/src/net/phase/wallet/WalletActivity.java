@@ -826,7 +826,7 @@ class BalanceRetriever implements Runnable
 				return theTx.value;
 			}
 		}
-		Log.e("balance", "Could not find hash " + hash + ":" + rec );
+//		Log.e("balance", "Could not find hash " + hash + ":" + rec );
 		return 0;
 	}
 			
@@ -917,7 +917,7 @@ class BalanceRetriever implements Runnable
 
 	private void updateBalanceFromUrl( String url ) throws IOException, JSONException
 	{
-		Log.i("balance", "fetching URL "+ url);
+//		Log.i("balance", "fetching URL "+ url);
 		HttpClient client = new DefaultHttpClient();
 		HttpGet hg = new HttpGet( url );
 
@@ -941,7 +941,7 @@ class BalanceRetriever implements Runnable
 				// only process transaction if we haven't seen it before
 				if ( !transactions.contains( txHash ) )
 				{
-					Log.i("balance", "Parsing txObject " + txHash );
+//					Log.i("balance", "Parsing txObject " + txHash );
 					transactions.add( txHash );
 					// find the in transaction
 					JSONArray txsIn = txObject.getJSONArray("in");
