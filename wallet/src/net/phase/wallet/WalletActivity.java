@@ -26,7 +26,9 @@ import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.net.URI;
 import java.text.DecimalFormat;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.Iterator;
 
@@ -48,11 +50,14 @@ import android.app.Dialog;
 import android.app.ProgressDialog;
 import android.content.Context;
 import android.content.DialogInterface;
+import android.content.Intent;
 import android.graphics.Color;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
 import android.os.Message;
+import android.os.Parcel;
+import android.os.Parcelable;
 import android.text.format.DateFormat;
 import android.text.method.LinkMovementMethod;
 import android.util.Log;
@@ -75,11 +80,135 @@ import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 
-interface keyInterface
+class Transaction implements Parcelable, Comparable<Transaction>
 {
-	String [] getKeys();
+	public Date date;
+	public long amount;
+	public long amountin;
+	public long amountout;
+	public String from;
+	public String to;
+	public long balance; // used for rolling balance
+
+	protected static Transaction [] compressTransactions( Transaction [] transactions )
+	{
+		Arrays.sort( transactions );
+		ArrayList<Transaction> txs = new ArrayList<Transaction>();
+		Date currentDate = new Date();
+		Transaction currentTransaction = null;
+		
+		for ( Transaction transaction : transactions )
+		{
+			if ( !currentDate.equals( transaction.date ) )
+			{
+				currentTransaction = new Transaction( transaction.date, 0, transaction.from, transaction.to );
+				currentTransaction.addTransaction( transaction );
+				txs.add( currentTransaction );
+				currentDate = transaction.date;
+			}
+			else
+			{
+				// same date, just add the data
+				if ( currentTransaction != null )
+				{
+					currentTransaction.addTransaction( transaction );
+				}
+			}
+		}
+
+		Transaction [] result = new Transaction[ txs.size() ];
+		txs.toArray( result );
+		
+		return result;	
+	}
+
+	protected static Date latest( Transaction [] transactions )
+	{
+		Arrays.sort( transactions );
+		return transactions[0].date;
+	}
+
+	private void addTransaction( Transaction tx )
+	{
+		this.amount += tx.amount;
+		
+		if ( amount >= 0 )
+		{
+			this.amountin += tx.amount;
+		}
+		else
+		{
+			this.to = tx.to;
+			this.amountout -= tx.amount;
+		}
+	}
+	protected void saveTransaction( PrintWriter out ) throws IOException
+	{
+		out.println( date );
+		out.println( amount );
+		out.println( from );
+		out.println( to );
+	}
+
+	protected Transaction( BufferedReader in ) throws NumberFormatException, IOException
+	{
+		this.date = new Date( in.readLine() );
+		this.amount = Long.parseLong( in.readLine() );
+		this.from = in.readLine();
+		this.to = in.readLine();
+	}
+
+	public Transaction( Date date, long amount, String from, String to )
+	{
+		this.date = date;
+		this.amount = amount;
+		this.from = from;
+		this.to = to;
+	}
+
+	public Transaction( Parcel in )
+	{
+		this.date = (Date) in.readSerializable();
+		this.amount = in.readLong();
+		this.from = in.readString();
+		this.to = in.readString();
+		this.amountin = in.readLong();
+		this.amountout = in.readLong();
+	}
+
+	@Override
+	public int describeContents()
+	{
+		return 0;
+	}
+
+	@Override
+	public void writeToParcel(Parcel dest, int flags)
+	{
+		dest.writeSerializable( this.date );
+		dest.writeLong( amount );
+		dest.writeString( from );
+		dest.writeString( to );
+		dest.writeLong( amountin );
+		dest.writeLong( amountout );
+	}
 	
-	boolean saveKeys( String[] keys );
+	public static final Parcelable.Creator<Transaction> CREATOR
+    	= new Parcelable.Creator<Transaction>() {
+			public Transaction createFromParcel(Parcel in) {
+				return new Transaction(in);
+			}
+
+			public Transaction[] newArray(int size) {
+				return new Transaction[size];
+			}
+	};
+
+	@Override
+	public int compareTo(Transaction another)
+	{
+		return another.date.compareTo(date);
+	}
 }
 
 class Key
@@ -119,14 +248,37 @@ class Wallet
 	public long balance;
 	public Key [] keys;
 	public Date lastUpdated;
+	public Transaction [] transactions;
+	private int version;
+	
+	private final static int TRANSACTIONS_ADDED_VERSION = 2;
+	private final static int CURRENT_VERSION = 2;
 	
 	protected void SaveWallet( PrintWriter out ) throws IOException
 	{
+		version = CURRENT_VERSION;
+
 		if ( out != null )
 		{
+			out.println("walletversion");
+			out.println(version);
 			out.println(name);
 			out.println(balance);
 			out.println(lastUpdated);
+			
+			if ( transactions == null )
+			{
+				out.println(0);
+			}
+			else
+			{
+				out.println( transactions.length );
+				
+				for ( Transaction t : transactions )
+				{
+					t.saveTransaction( out );
+				}
+			}
 	
 			for (Key key : keys )
 			{
@@ -218,8 +370,28 @@ class Wallet
 	protected Wallet( BufferedReader in) throws IOException, NumberFormatException
 	{
 		name = in.readLine();
+		if ( name.equals("walletversion") )
+		{
+			version = Integer.parseInt( in.readLine());
+			name = in.readLine();
+		}
+		else
+		{
+			version = 1;
+		}
 		balance = Long.parseLong( in.readLine() );
 		lastUpdated = new Date(in.readLine());
+		
+		if ( version >= TRANSACTIONS_ADDED_VERSION )
+		{
+			int numTx = Integer.parseInt( in.readLine() );
+			transactions = new Transaction[ numTx ];
+			for (int i = 0; i < numTx; i++)
+			{
+				transactions[i] = new Transaction( in );
+			}
+		}
+
 		ArrayList<Key> keysArray = new ArrayList<Key>();
 		String keyHash = null;
 
@@ -323,6 +495,8 @@ class WalletAdapter extends BaseAdapter
 		
 		View v = inflater.inflate( R.layout.walletlayout, null );
 		v.setLongClickable( true );
+		v.setOnClickListener( context );
+		v.setTag(position);
 		
 		TextView balanceTextView = (TextView) v.findViewById(R.id.walletBalanceText);
 		DecimalFormat df = new DecimalFormat("0.00");
@@ -346,6 +520,25 @@ class WalletAdapter extends BaseAdapter
 		infoTextView.setTextColor( Color.GRAY );
 		infoTextView.setTextSize( 8 );
 		infoTextView.setText( wallets[position].keys.length + " keys (" + wallets[position].getActiveKeyCount() +" in use)" );
+		
+		TextView txLastUpdatedTextView = (TextView) v.findViewById(R.id.txLastUpdatedText );
+		txLastUpdatedTextView.setTextColor( Color.GRAY );
+		txLastUpdatedTextView.setTextSize( 8 );
+		
+		TextView txInfoTextView = (TextView) v.findViewById(R.id.txInfoText);
+		txInfoTextView.setTextColor( Color.GRAY );
+		txInfoTextView.setTextSize( 8 );
+		
+		if ( wallets[position].transactions != null )
+		{
+			txLastUpdatedTextView.setText( "Last Transaction: " + DateFormat.format("MM/dd/yy h:mmaa", Transaction.latest( wallets[position].transactions ) ) );
+			txInfoTextView.setText( wallets[position].transactions.length + " transactions ("+Transaction.compressTransactions(wallets[position].transactions).length+" unique)" );
+		}
+		else
+		{
+			txLastUpdatedTextView.setText("");
+			txInfoTextView.setText("");
+		}
 
 		Button button = (Button) v.findViewById(R.id.updateButton);
 		button.setTag(position);
@@ -356,6 +549,8 @@ class WalletAdapter extends BaseAdapter
 
 public class WalletActivity extends Activity implements OnClickListener
 {
+	public final static String TRANSACTIONS = "net.phase.wallet.transactions";
+	public final static String WALLETNAME = "net.phase.wallet.name";
 	private ProgressDialog dialog;
 	private Wallet[] wallets;
 	private int nextWallet = -1;
@@ -518,6 +713,16 @@ public class WalletActivity extends Activity implements OnClickListener
     	}
     }
 
+    private void showTransactions( Wallet wallet)
+    {
+			Intent intent = new Intent(this, TransactionsActivity.class);
+			intent.putExtra( WALLETNAME, wallet.name);
+			Transaction [] compressedTransactions = Transaction.compressTransactions(wallet.transactions);
+
+   			intent.putExtra( TRANSACTIONS, compressedTransactions );
+   			startActivity(intent);
+    }
+
     protected Dialog onCreateDialog( int id )
     {
     	AlertDialog.Builder builder;
@@ -619,6 +824,16 @@ public class WalletActivity extends Activity implements OnClickListener
     			removeWallet( wallets[info.position].name );
     			updateWalletList();
     			return true;
+       		case R.id.viewItem:
+       			if ( wallets[info.position].transactions == null )
+       			{
+       				toastMessage("Update first");
+       			}
+       			else
+       			{
+       				showTransactions( wallets[info.position] );
+       			}
+       			return true;
     		default:
     			return super.onOptionsItemSelected(item);
     	}
@@ -721,6 +936,9 @@ public class WalletActivity extends Activity implements OnClickListener
     					case BalanceRetriever.MESSAGE_STATUS_JSON:
     						toastMessage("JSON Parse Error");
     						break;
+    					case BalanceRetriever.MESSAGE_STATUS_PARSE:
+    						toastMessage("Parse Error");
+    						break;
     				}
     				break;
     			case BalanceRetriever.MESSAGE_SETLENGTH:
@@ -733,36 +951,53 @@ public class WalletActivity extends Activity implements OnClickListener
 	@Override
 	public void onClick(View v)
 	{
-		Button pushed = (Button) v;
-		int i = (Integer) pushed.getTag();
-		updateWalletBalance( wallets[ i ], true );
+		int i = (Integer) v.getTag();
+
+		if ( v.getId() == R.id.updateButton )
+		{
+			updateWalletBalance( wallets[ i ], true );
+		}
+		else
+		{
+			showTransactions(wallets[i]);
+   		}
 	}
 }
 
 class tx
 {
-	public String hash;
+	public String txhash;
 	public int rec;
 	public long value;
+	public String inKeyHash;
+	public String outKeyHash;
 	
-	public tx( String hash, int rec, long value )
+	public tx( String txhash, int rec, long value, String outKeyHash, String inKeyHash )
 	{
 		// value is number of satoshis
-		this.hash = hash;
+		this.txhash = txhash;
 		this.rec = rec;
 		this.value = value;
+		this.outKeyHash = outKeyHash;
+		this.inKeyHash = inKeyHash;
 	}
 }
 
 class prevout
 {
-	public String hash;
+	public String prevTxHash;
+	public String txhash;
 	public int rec;
+	public Date date;
+	public String addr;
 	
-	public prevout( String hash, int rec )
+	public prevout( String txhash, String prevTxHash, int rec, Date date, String addr )
 	{
-		this.hash = hash;
+		this.txhash = txhash;
+		this.prevTxHash = prevTxHash;
 		this.rec = rec;
+		this.date = date;
+		this.addr = addr;
 	}
 }
 
@@ -776,6 +1011,7 @@ class BalanceRetriever implements Runnable
 	public static final int MESSAGE_STATUS_NOKEYS = 1;
 	public static final int MESSAGE_STATUS_NETWORK = 2;
 	public static final int MESSAGE_STATUS_JSON= 3;
+	public static final int MESSAGE_STATUS_PARSE = 4;
 	
 
 	public static final double SATOSHIS_PER_BITCOIN = 100000000.0;
@@ -790,9 +1026,11 @@ class BalanceRetriever implements Runnable
 	private Wallet wallet;
 	private boolean fast;
 	
-	private ArrayList<String> transactions;
+	private ArrayList<String> transactionCache;
+	private ArrayList<Transaction> transactions;
 	private ArrayList<tx> txs;
 	private ArrayList<prevout> pendingDebits;
+	private static final java.text.DateFormat formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 	
 	public long getFinalBalance()
 	{
@@ -811,25 +1049,39 @@ class BalanceRetriever implements Runnable
 		this.wallet = wallet;
 		this.fast = fast;
 
-		transactions = new ArrayList<String>();
+		transactions = new ArrayList<Transaction>();
+		transactionCache = new ArrayList<String>();
 		txs = new ArrayList<tx>();
 		pendingDebits = new ArrayList<prevout>();
 	}
 
-	private long getTxValue( String hash, int rec )
+	private tx getMatchingTx( String txhash, int rec )
 	{
 		for (tx theTx : txs)
 		{
-			if ( theTx.hash.equals( hash ) &&
+			if ( theTx.txhash.equals( txhash ) &&
 				 theTx.rec == rec )
 			{
-				return theTx.value;
+				return theTx;
 			}
 		}
 //		Log.e("balance", "Could not find hash " + hash + ":" + rec );
-		return 0;
+		return null;
 	}
 			
+	private tx getFirstNonMatchingTx( String txhash, Key [] keys )
+	{
+		for (tx theTx : txs)
+		{
+			if ( theTx.txhash.equals(txhash) && 
+				 !Key.arrayContains(keys, theTx.outKeyHash ) )
+			{
+				return theTx;
+			}
+		}
+		return null;
+	}
+	
 	public void run()
 	{
 		balance = 0;
@@ -896,7 +1148,18 @@ class BalanceRetriever implements Runnable
 			// look through previous transactions and debit payments
 			for ( prevout previousOut : pendingDebits )
 			{
-				balance -= getTxValue( previousOut.hash, previousOut.rec );
+				tx matchingTx = getMatchingTx( previousOut.prevTxHash, previousOut.rec );
+				balance -= matchingTx.value;
+				
+				tx outputTx = getFirstNonMatchingTx( previousOut.txhash, wallet.keys );
+				if ( outputTx != null)
+				{
+					transactions.add( new Transaction( previousOut.date, -matchingTx.value, previousOut.addr, outputTx.outKeyHash ) );
+				}
+				else
+				{
+					transactions.add( new Transaction( previousOut.date, -matchingTx.value, previousOut.addr, "unknown" ) );
+				}
 			}
 
 			status = MESSAGE_STATUS_SUCCESS;			
@@ -909,13 +1172,19 @@ class BalanceRetriever implements Runnable
 		{
 			status = MESSAGE_STATUS_JSON;
 		}
+		catch (java.text.ParseException e)
+		{
+			status = MESSAGE_STATUS_PARSE;
+		}
 
 		updateHandler.sendMessage( updateHandler.obtainMessage(MESSAGE_FINISHED, status, 0 ) );
 		wallet.balance = balance;
 		wallet.lastUpdated = new Date();
+		wallet.transactions = new Transaction[transactions.size()];
+		transactions.toArray( wallet.transactions );
 	}
 
-	private void updateBalanceFromUrl( String url ) throws IOException, JSONException
+	private void updateBalanceFromUrl( String url ) throws IOException, JSONException, java.text.ParseException
 	{
 //		Log.i("balance", "fetching URL "+ url);
 		HttpClient client = new DefaultHttpClient();
@@ -937,28 +1206,30 @@ class BalanceRetriever implements Runnable
 			{
 				JSONObject txObject = resp.getJSONObject( itr.next() );
 				String txHash = txObject.getString("hash");
+				String inKeyHash = "unknown";
 				
 				// only process transaction if we haven't seen it before
-				if ( !transactions.contains( txHash ) )
+				if ( !transactionCache.contains( txHash ) )
 				{
 //					Log.i("balance", "Parsing txObject " + txHash );
-					transactions.add( txHash );
+					transactionCache.add( txHash );
 					// find the in transaction
 					JSONArray txsIn = txObject.getJSONArray("in");
+					Date date = formatter.parse( txObject.getString("time") );
 					
 					for ( int i = 0; i < txsIn.length(); i++ )
 					{
 						JSONObject inRecord = txsIn.getJSONObject( i );
 						try
 						{
-							String pubKeyHash = inRecord.getString("address");
+							inKeyHash = inRecord.getString("address");
 	
 							// if one of our keys is there, we are paying :(
-							if ( Key.arrayContains(wallet.keys, pubKeyHash ) )
+							if ( Key.arrayContains(wallet.keys, inKeyHash ) )
 							{
 								JSONObject prevRecord = inRecord.getJSONObject("prev_out");
 								// if we paid for part of this transaction, record this.
-								pendingDebits.add( new prevout( prevRecord.getString("hash"), prevRecord.getInt("n") ) );
+								pendingDebits.add( new prevout( txHash, prevRecord.getString("hash"), prevRecord.getInt("n"), date, inKeyHash ) );
 							}
 						}
 						catch ( JSONException e )
@@ -973,15 +1244,16 @@ class BalanceRetriever implements Runnable
 					for ( int i = 0; i < txsOut.length(); i++ )
 					{
 						JSONObject outRecord = txsOut.getJSONObject( i );
-						String pubKeyHash = outRecord.getString("address");
+						String outKeyHash = outRecord.getString("address");
 						// convert to microbitcoins for accuracy
 						long value = (long) ( outRecord.getDouble( "value" ) * SATOSHIS_PER_BITCOIN );
 						// store the out transaction, this is used later on
-						txs.add( new tx( txHash, i, value ) );
+						txs.add( new tx( txHash, i, value, outKeyHash, inKeyHash ) );
 
 						// if one of our keys is there, add the balance
-						if ( Key.arrayContains(wallet.keys, pubKeyHash ) )
+						if ( Key.arrayContains(wallet.keys, outKeyHash ) )
 						{
+							transactions.add( new Transaction( date, value, inKeyHash, outKeyHash ) );
 							balance += value;
 						}
 					}
