@@ -18,11 +18,11 @@ or
 ./decode ~/.bitcoin/wallet.dat > keys.txt
 }}}
 
-Examine the keys.txt to ensure it only contains public key address hashes.
+Examine the keys.txt to ensure it only contains public key address hashes.  These should start with '1' and should be 33 or 34 characters long. 
 
 *Step 3: Upload the keys*
 
-Connect your Android phone, and copy the keys.txt to the SD card.  This should be the top level folder on Windows, or {{{/sdcard}}} on some systems.
+Connect your Android phone over USB, and copy the keys.txt to the SD card.  This should be the top level folder on Windows, or {{{/sdcard}}} on some systems.
 
 *Step 4: Install the android application from the market*
 
