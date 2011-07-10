@@ -52,6 +52,7 @@ import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.graphics.Color;
+import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
@@ -868,6 +869,10 @@ public class WalletActivity extends Activity implements OnClickListener
     			return true;
     		case R.id.optionsItem:
     			toastMessage("Options coming soon...");
+    			return true;
+    		case R.id.helpItem:
+    			Uri uri = Uri.parse( "http://code.google.com/p/bitcoinwallet/wiki/Using" );
+    			startActivity( new Intent( Intent.ACTION_VIEW, uri ) );
     			return true;
     		default:
     			return super.onOptionsItemSelected(item);
