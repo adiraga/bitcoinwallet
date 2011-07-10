@@ -4,7 +4,7 @@ These steps are for beginner users, if you want to manually export your keys, or
 
 *Step 1: download the decoder*
 
-Go <a href="http://code.google.com/p/bitcoinwallet/downloads/list">here</a> and download the decoder executable for your platform.
+Go <a href="http://code.google.com/p/bitcoinwallet/downloads/list">here</a> and download the decoder executable for your platform.  You can also export your addresses using <a href="https://github.com/gavinandresen/bitcointools">bitcointools</a> or manually create a text file with all your addresses.
 
 *Step 2: extract the keys*
 
