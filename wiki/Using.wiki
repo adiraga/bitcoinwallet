@@ -20,6 +20,8 @@ or
 
 Examine the keys.txt to ensure it only contains public key address hashes.  These should start with '1' and should be 33 or 34 characters long. 
 
+*Note* If you do not wish to use my tool - you can use [https://github.com/joric/pywallet pywallet] to extract keys, or manually copy and paste the keys from your bitcoin client.
+
 *Step 3: Upload the keys*
 
 Connect your Android phone over USB, and copy the keys.txt to the SD card.  This should be the top level folder on Windows, or {{{/sdcard}}} on some systems.
