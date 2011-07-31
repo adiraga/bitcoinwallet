@@ -17,13 +17,13 @@
 package net.phase.wallet;
 
 import java.text.DecimalFormat;
-import java.util.Arrays;
 
 import android.app.Activity;
 import android.graphics.Color;
 import android.os.Bundle;
 import android.os.Parcelable;
 import android.text.format.DateFormat;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -33,18 +33,19 @@ import android.widget.TextView;
 
 class TransactionAdapter extends BaseAdapter
 {
-	private final static int STYLE_NORMAL = 1;
-	private final static int STYLE_SIDEBYSIDE = 2;
-	private final static int STYLE_DETAILED = 3;
+	public final static int STYLE_UNKNOWN = 0;
+	public final static int STYLE_NORMAL = 1;
+	public final static int STYLE_SIDEBYSIDE = 2;
+	public final static int STYLE_DETAILED = 3;
 	
 	private Transaction [] transactions;
 	private TransactionsActivity context;
+	private int layoutStyle;
 
-	private int layoutStyle = STYLE_NORMAL;
-	
-	public TransactionAdapter( TransactionsActivity c, Transaction [] transactions)
+	public TransactionAdapter( TransactionsActivity c, Transaction [] transactions, int layoutStyle )
 	{
 		this.transactions = transactions;
+		this.layoutStyle = layoutStyle;
 		this.context = c;
 	}
 
@@ -142,7 +143,7 @@ class TransactionAdapter extends BaseAdapter
 	
 		txDateTextView.setTextColor( Color.GRAY );
 		txDateTextView.setTextSize( 10 );
-		txDateTextView.setText( DateFormat.format("MM/dd/yy", transactions[position].date ) );
+		txDateTextView.setText( DateFormat.getDateFormat(context).format(transactions[position].date ) );
 		
 		TextView txTimeTextView = (TextView) v.findViewById(R.id.txTimeText );
 		
@@ -162,10 +163,17 @@ public class TransactionsActivity extends Activity
     @Override
     public void onCreate(Bundle savedInstanceState)
     {
+    	Log.d("transaction", "start");
+    	int style = getIntent().getExtras().getInt( WalletActivity.TRANSACTIONSTYLE );
         super.onCreate(savedInstanceState);
         setContentView( R.layout.txmain );
 
         setTitle( getIntent().getExtras().getString( WalletActivity.WALLETNAME ) + " Transactions");
+
+        if ( style == TransactionAdapter.STYLE_UNKNOWN )
+        {
+        	style = TransactionAdapter.STYLE_NORMAL;
+        }
 
         Parcelable parcels [] = getIntent().getExtras().getParcelableArray( WalletActivity.TRANSACTIONS );
         // java can't cast an array into a supertype of the array for some reason... apparently it breaks type safety.
@@ -187,7 +195,8 @@ public class TransactionsActivity extends Activity
         }
 
         ListView view = (ListView) findViewById( R.id.transactionListView );
-        TransactionAdapter adapter = new TransactionAdapter( this, transactions );
+        TransactionAdapter adapter = new TransactionAdapter( this, transactions, style );
         view.setAdapter( adapter );
+        Log.d("transaction","finish");
     }
 }

@@ -31,6 +31,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.Iterator;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
@@ -47,10 +49,15 @@ import org.json.JSONObject;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.Dialog;
+import android.app.Notification;
+import android.app.NotificationManager;
+import android.app.PendingIntent;
 import android.app.ProgressDialog;
+import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.net.Uri;
 import android.os.Bundle;
@@ -81,6 +88,132 @@ import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 
+class Currency implements Runnable
+{
+	public final static int STATUS_SUCCESS = 0;
+	public final static int STATUS_ERROR = 1;
+	private Handler handler;
+	private static long lastChecked = 0;
+	private static JSONObject lastResult = null;
+	private static long cacheLength = 1000 * 60 * 30; // 30 minutes
+	private final static String url = "http://bitcoincharts.com/t/weighted_prices.json";
+
+	public Currency( Handler h )
+	{
+		this.handler = h;
+	}
+
+	public static void updateWeightedCurrencies( ) throws IOException, JSONException
+	{
+		Date now = new Date();
+		
+		if ( ( now.getTime() - lastChecked ) > cacheLength )
+		{
+			HttpClient client = new DefaultHttpClient();
+			HttpGet hg = new HttpGet( url );
+	
+			HttpResponse response = client.execute(hg);
+			
+			if ( response.getStatusLine().getStatusCode() == HttpStatus.SC_OK )
+			{
+				lastResult = new JSONObject( EntityUtils.toString( response.getEntity() ) );
+				lastChecked = now.getTime();
+			}
+		}
+	}
+
+	public static String [] getAvailableCurrencies( ) throws IOException, JSONException
+	{
+		String [] result = null;
+		ArrayList<String> resAL = new ArrayList<String>();
+
+		updateWeightedCurrencies();
+
+		if ( lastResult != null )
+		{
+			// JSONObject.keys() returns Iterator<String> but for some reason
+			// isn't typed that way
+			@SuppressWarnings("unchecked")
+			Iterator<String> itr = lastResult.keys();
+			
+			// look through every transaction
+			while ( itr.hasNext() )
+			{
+				resAL.add( itr.next() );
+			}
+		}
+
+		if ( resAL.size() > 0 )
+		{
+			result = new String [ resAL.size() ];
+			resAL.toArray( result );
+			Arrays.sort( result );
+		}
+
+		return result;
+	}
+	
+	public static double getRate( String currency )
+	{
+		double result = 0;
+
+		if ( lastResult != null )
+		{
+			try
+			{
+				// JSONObject.keys() returns Iterator<String> but for some reason
+				// isn't typed that way
+				@SuppressWarnings("unchecked")
+				Iterator<String> itr = lastResult.keys();
+				
+				// look through every transaction
+				while ( itr.hasNext() )
+				{
+					String cur = itr.next();
+					if ( cur.equals( currency ) )
+					{
+						JSONObject currencyObject = lastResult.getJSONObject( cur );
+						try
+						{
+							result = currencyObject.getDouble( "30d" );
+							result = currencyObject.getDouble( "7d" );
+							result = currencyObject.getDouble( "24h" );
+						}
+						catch (JSONException e)
+						{
+							// caught when the first failure occurs above
+						}
+					}
+				}
+			}
+			catch (JSONException e)
+			{
+
+			}
+		}
+		
+		return result;
+	}
+
+	@Override
+	public void run()
+	{
+		try
+		{
+			updateWeightedCurrencies( );
+			handler.sendEmptyMessage( STATUS_SUCCESS );
+		}
+		catch ( IOException e )
+		{
+			handler.sendEmptyMessage( STATUS_ERROR );
+		}
+		catch ( JSONException e )
+		{
+			handler.sendEmptyMessage( STATUS_ERROR );
+		}
+	}
+}
+
 class Transaction implements Parcelable, Comparable<Transaction>
 {
 	public Date date;
@@ -93,7 +226,6 @@ class Transaction implements Parcelable, Comparable<Transaction>
 
 	protected static Transaction [] compressTransactions( Transaction [] transactions )
 	{
-		Arrays.sort( transactions );
 		ArrayList<Transaction> txs = new ArrayList<Transaction>();
 		Date currentDate = new Date();
 		Transaction currentTransaction = null;
@@ -263,11 +395,32 @@ class Wallet
 	public Date lastUpdated;
 	public Transaction [] transactions;
 	private int version;
+	private WalletActivity activity;
 	
 	private final static int LEGACY_VERSION = 1;
 	private final static int TRANSACTIONS_ADDED_VERSION = 2;
 	private final static int CURRENT_VERSION = 2;
+
+	public void notifyUser()
+	{
+		/** code not ready yet
+		if ( activity != null )
+		{
+			long when = System.currentTimeMillis();
+			Notification n = new Notification( android.R.drawable.stat_notify_more, "Balance", when);
 	
+			NotificationManager nm = (NotificationManager) activity.getSystemService( Context.NOTIFICATION_SERVICE );
+			Context globalContext = activity.getApplicationContext();
+			
+			Intent notificationIntent = new Intent( activity, activity.getClass() );
+			PendingIntent contentIntent = PendingIntent.getActivity( activity, 0, notificationIntent, 0 );
+			
+			n.setLatestEventInfo( globalContext, "New Balance", "New Balance", contentIntent );
+			nm.notify(1, n);
+		}
+		*/
+	}
+
 	protected void SaveWallet( PrintWriter out ) throws IOException
 	{
 		version = CURRENT_VERSION;
@@ -310,14 +463,17 @@ class Wallet
 
 		while ( ( keyHash = bin.readLine() ) != null )
 		{
-			if ( keyHash.startsWith("1") && ( keyHash.length() == 33 || keyHash.length() == 34 ) )
+			// add a space at the start to make the regex work more easily
+			keyHash = " " + keyHash;
+
+			Pattern p = Pattern.compile( "\\W(1[1-9A-HJ-NP-Za-km-z]{27,34})" );
+			Matcher m = p.matcher( keyHash );
+
+			if ( m.find() )
 			{
-				keysArray.add( new Key( keyHash ) );
+				Log.d("balance", "Key " + m.group(1) + " found");
+				keysArray.add( new Key( m.group( 1 ) ) );
 				foundKey = true;
-			}
-			else
-			{
-				throw new ParseException("Invalid Key");
 			}
 		}
 		
@@ -332,8 +488,9 @@ class Wallet
 		return foundKey;
 	}
 
-	public Wallet(String name, File file) throws IOException
+	public Wallet(String name, File file, WalletActivity activity ) throws IOException
 	{
+		this.activity = activity;
 		this.name = name;
 		boolean foundKey = false;
 		BufferedReader in = new BufferedReader( new FileReader( file ) );
@@ -348,8 +505,9 @@ class Wallet
 		}
 	}
 
-	public Wallet(String name, URI url) throws IOException, ParseException
+	public Wallet(String name, URI url, WalletActivity activity ) throws IOException, ParseException
 	{
+		this.activity = activity;
 		this.name = name;
 		HttpClient client = new DefaultHttpClient();
 		HttpGet hg = new HttpGet( url );
@@ -381,8 +539,9 @@ class Wallet
 		}
 	}
 
-	protected Wallet( BufferedReader in) throws IOException, NumberFormatException
+	protected Wallet( BufferedReader in, WalletActivity activity ) throws IOException, NumberFormatException
 	{
+		this.activity = activity;
 		name = in.readLine();
 		if ( name.equals("walletversion") )
 		{
@@ -419,7 +578,7 @@ class Wallet
 		keysArray.toArray( keys );
 	}
 	
-	public static Wallet [] getStoredWallets(Context context) throws IOException
+	public static Wallet [] getStoredWallets( Context context, WalletActivity activity ) throws IOException
 	{
 		ArrayList<Wallet> walletsArray = new ArrayList<Wallet>();
 
@@ -433,7 +592,7 @@ class Wallet
 			BufferedReader in = new BufferedReader( new InputStreamReader( context.openFileInput( filename ) ) );
 			try
 			{
-				walletsArray.add( new Wallet( in ) );
+				walletsArray.add( new Wallet( in, activity ) );
 			}
 			catch (NumberFormatException e)
 			{
@@ -502,9 +661,20 @@ class WalletAdapter extends BaseAdapter
 		return 0;
 	}
 
+	private String getTimeStampString( Date d )
+	{
+		String result = DateFormat.getDateFormat( context ).format( d );
+		
+		result += " " + DateFormat.format("h:mmaa", d ).toString();
+		
+		return result;
+	}
+	
 	@Override
 	public View getView(int position, View convertView, ViewGroup parent)
 	{
+		double exchrate = Currency.getRate( context.getActiveCurrency() );
+
 		LayoutInflater inflater = LayoutInflater.from( context );
 		
 		View v = inflater.inflate( R.layout.walletlayout, null );
@@ -512,12 +682,26 @@ class WalletAdapter extends BaseAdapter
 		v.setOnClickListener( context );
 		v.setTag(position);
 		
-		TextView balanceTextView = (TextView) v.findViewById(R.id.walletBalanceText);
 		DecimalFormat df = new DecimalFormat("0.00");
+
+		TextView balanceTextView = (TextView) v.findViewById(R.id.walletBalanceText);
 		balanceTextView.setText(df.format( wallets[position].balance / BalanceRetriever.SATOSHIS_PER_BITCOIN ) );
+		
+		TextView curTextView = (TextView) v.findViewById(R.id.walletCurText);
+		curTextView.setTextSize( 10 );
+
+		if ( exchrate != 0)
+		{
+			curTextView.setText( "(" + df.format( wallets[position].balance * exchrate / BalanceRetriever.SATOSHIS_PER_BITCOIN ) + context.getActiveCurrency() + ")" );
+		}
+		else
+		{
+			curTextView.setText( "" );		
+		}
+
 		balanceTextView.setTextSize( 20 );
 		balanceTextView.setTextColor( Color.GREEN );
-
+		
 		TextView nameTextView = (TextView) v.findViewById(R.id.walletNameText );
 		nameTextView.setText(wallets[position].name);
 		nameTextView.setTextColor( Color.BLACK );
@@ -527,7 +711,7 @@ class WalletAdapter extends BaseAdapter
 		
 		lastUpdatedTextView.setTextColor( Color.GRAY );
 		lastUpdatedTextView.setTextSize( 8 );
-		lastUpdatedTextView.setText( "Last Updated: " + DateFormat.format("MM/dd/yy h:mmaa", wallets[position].lastUpdated ) );
+		lastUpdatedTextView.setText( "Last Updated: " + getTimeStampString( wallets[position].lastUpdated ) );
 
 		TextView infoTextView = (TextView) v.findViewById(R.id.infoText );
 		
@@ -545,7 +729,7 @@ class WalletAdapter extends BaseAdapter
 		
 		if ( wallets[position].transactions != null && wallets[position].transactions.length > 0 )
 		{
-			txLastUpdatedTextView.setText( "Last Transaction: " + DateFormat.format("MM/dd/yy h:mmaa", Transaction.latest( wallets[position].transactions ) ) );
+			txLastUpdatedTextView.setText( "Last Transaction: " + getTimeStampString( Transaction.latest( wallets[position].transactions ) ) );
 			txInfoTextView.setText( wallets[position].transactions.length + " transactions ("+Transaction.compressTransactions(wallets[position].transactions).length+" unique)" );
 		}
 		else
@@ -565,11 +749,29 @@ public class WalletActivity extends Activity implements OnClickListener
 {
 	public final static String TRANSACTIONS = "net.phase.wallet.transactions";
 	public final static String WALLETNAME = "net.phase.wallet.name";
+	public final static String TRANSACTIONSTYLE = "net.phase.wallet.transactionsstyle";
 	private ProgressDialog dialog;
 	private Wallet[] wallets;
 	private int nextWallet = -1;
 	private static final int DIALOG_URL	= 1;
 	private static final int DIALOG_FILE = 2;
+	private static final int DIALOG_OPTIONS = 3;
+	private String activeCurrency = "USD";
+
+	private boolean savePreferences()
+	{
+		SharedPreferences pref = getPreferences( MODE_PRIVATE );
+		
+		SharedPreferences.Editor editor = pref.edit();
+		editor.putString("currency", activeCurrency );
+		return editor.commit();
+	}
+
+	private void loadPreferences()
+	{
+		SharedPreferences pref = getPreferences( MODE_PRIVATE );
+		setActiveCurrency( pref.getString("currency", "USD" ) );
+	}
 
 	private void toastMessage( String message )
 	{
@@ -586,19 +788,23 @@ public class WalletActivity extends Activity implements OnClickListener
     public void onCreate(Bundle savedInstanceState)
     {
         super.onCreate(savedInstanceState);
-        setContentView( R.layout.main );
+        loadPreferences();
         try
         {
-        	wallets = Wallet.getStoredWallets( this );
+        	wallets = Wallet.getStoredWallets( this, this );
         }
         catch (IOException e)
         {
         	toastMessage(e.getMessage());
         }
         
+        Currency c = new Currency( currencyHandler );
+        Thread t = new Thread( c );
+        t.start();
+
         updateWalletList();
     }
-    
+
     public void addWallet( Wallet wallet )
     {
     	if ( wallets == null )
@@ -627,11 +833,12 @@ public class WalletActivity extends Activity implements OnClickListener
 
     public void updateWalletList()
     {
-        ListView view = (ListView) findViewById( R.id.walletListView );
-
         if ( wallets != null )
         {
-	        WalletAdapter adapter = new WalletAdapter( this, wallets );
+            setContentView( R.layout.main );
+            ListView view = (ListView) findViewById( R.id.walletListView );
+
+            WalletAdapter adapter = new WalletAdapter( this, wallets );
 	        view.setAdapter( adapter );
 	        registerForContextMenu( view );
 	        try
@@ -645,7 +852,7 @@ public class WalletActivity extends Activity implements OnClickListener
         }
         else
         {
-            setContentView( R.layout.main );
+        	setContentView( R.layout.mainnowallets );
         }
     }
     
@@ -724,16 +931,58 @@ public class WalletActivity extends Activity implements OnClickListener
 			    	fileSpinner.setAdapter( adapter );
 		    	}			    	
 		    	break;
+	    	case DIALOG_OPTIONS:
+		    	Spinner currencySpinner = (Spinner) dialog.findViewById(R.id.currencySpinner);
+		    	String current = getActiveCurrency();
+		    	String [] currencies = { current };
+
+		    	try
+		    	{
+		    		currencies = Currency.getAvailableCurrencies();
+		    	}
+		    	catch ( IOException e )
+		    	{
+		    	}
+		    	catch ( JSONException e )
+		    	{
+		    	}
+		    	ArrayAdapter<String> adapter = new ArrayAdapter<String>( this, android.R.layout.simple_spinner_item, currencies );
+		    	currencySpinner.setAdapter( adapter );
+		    	for ( int i = 0 ; i < currencies.length; i++ )
+		    	{
+		    		if ( currencies[i].equals( current ) )
+		    		{
+		    			currencySpinner.setSelection( i );
+		    			break;
+		    		}
+		    	}
+
+	    		break;
     	}
     }
 
-    private void showTransactions( Wallet wallet)
+    private void showTransactions( Wallet wallet )
+    {
+    	showTransactions( wallet, TransactionAdapter.STYLE_NORMAL );
+    }
+
+    private void showTransactions( Wallet wallet, int style )
     {
 			Intent intent = new Intent(this, TransactionsActivity.class);
 			intent.putExtra( WALLETNAME, wallet.name);
-			Transaction [] compressedTransactions = Transaction.compressTransactions(wallet.transactions);
+			intent.putExtra( TRANSACTIONSTYLE, style );
+			Arrays.sort( wallet.transactions );
 
-   			intent.putExtra( TRANSACTIONS, compressedTransactions );
+			if ( style == TransactionAdapter.STYLE_NORMAL )
+			{
+				Transaction [] compressedTransactions = Transaction.compressTransactions(wallet.transactions);
+				intent.putExtra( TRANSACTIONS, compressedTransactions );
+			}
+			else
+			{
+				intent.putExtra( TRANSACTIONS, wallet.transactions );
+			}
+
    			startActivity(intent);
     }
 
@@ -744,6 +993,7 @@ public class WalletActivity extends Activity implements OnClickListener
     	builder = new AlertDialog.Builder( this );
     	LayoutInflater inflater = (LayoutInflater) getSystemService(LAYOUT_INFLATER_SERVICE);
     	View layout = null;
+    	final WalletActivity parentActivity = this;
     	
     	switch ( id )
     	{
@@ -769,7 +1019,7 @@ public class WalletActivity extends Activity implements OnClickListener
 		
 		                 try
 		                 {
-		                	 Wallet w = new Wallet(name, new URI( hash ) );
+		                	 Wallet w = new Wallet(name, new URI( hash ), parentActivity );
 		                	 addWallet( w );
 		                 }
 		                 catch (Exception e)
@@ -801,7 +1051,7 @@ public class WalletActivity extends Activity implements OnClickListener
 		                 
 		                 try
 		                 {
-		                	 Wallet w = new Wallet(name, filename );
+		                	 Wallet w = new Wallet(name, filename, parentActivity );
 		                	 addWallet( w );
 		                 }
 		                 catch (Exception e)
@@ -817,6 +1067,26 @@ public class WalletActivity extends Activity implements OnClickListener
 		           }
 		       });
 		    	break;
+	    	case DIALOG_OPTIONS:
+		    	layout = inflater.inflate(R.layout.options_dialog, null );
+		    	
+		    	final Spinner currencySpinner = (Spinner) layout.findViewById(R.id.currencySpinner);
+		
+		    	builder.setView(layout);
+		    	builder.setPositiveButton("Ok", new DialogInterface.OnClickListener() {
+		            public void onClick(DialogInterface dialog, int id) {
+		                 String currency = (String) currencySpinner.getSelectedItem();
+		                 setActiveCurrency( currency );
+		                 savePreferences();
+		            }
+		        });
+		    	builder.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
+		           public void onClick(DialogInterface dialog, int id) {
+		                dialog.cancel();
+		           }
+		       });
+		    	break;
+
     	}
 
     	alertDialog = builder.create();
@@ -868,7 +1138,7 @@ public class WalletActivity extends Activity implements OnClickListener
     			updateAll();
     			return true;
     		case R.id.optionsItem:
-    			toastMessage("Options coming soon...");
+    			showDialog( DIALOG_OPTIONS );
     			return true;
     		case R.id.helpItem:
     			Uri uri = Uri.parse( "http://code.google.com/p/bitcoinwallet/wiki/Using" );
@@ -887,9 +1157,9 @@ public class WalletActivity extends Activity implements OnClickListener
     	dialog.setMessage( "Obtaining balance ("+w.name+")..." );
     	dialog.setProgressStyle( ProgressDialog.STYLE_HORIZONTAL );
     	if ( fast )
-    		dialog.setMax( w.getActiveKeyCount() + 1 );
+    		dialog.setMax( w.getActiveKeyCount() );
     	else
-    		dialog.setMax( w.keys.length + 1 );
+    		dialog.setMax( w.keys.length );
     	dialog.setProgress( 0 );
     	dialog.show();
     	
@@ -923,6 +1193,13 @@ public class WalletActivity extends Activity implements OnClickListener
     	wallets = newWallets;
     }
 
+    Handler currencyHandler = new Handler() {
+    	public void handleMessage( Message msg )
+    	{
+			updateWalletList();
+    	}
+    };
+
     Handler progressHandler = new Handler() {
     	public void handleMessage( Message msg )
     	{
@@ -945,6 +1222,12 @@ public class WalletActivity extends Activity implements OnClickListener
     						else
     						{
         						updateWalletList();
+
+        						// send an update to the widget
+        				        Intent intent = new Intent( WalletWidgetProvider.UPDATE_WIDGET );
+        				        intent.setClassName( "net.phase.wallet", "net.phase.wallet.WalletWidgetProvider" );
+        				        sendBroadcast( intent );
+
     							nextWallet = -1;
     						}
     						break;
@@ -989,6 +1272,17 @@ public class WalletActivity extends Activity implements OnClickListener
    				showTransactions(wallets[i]);
    			}
    		}
+	}
+	
+	public String getActiveCurrency()
+	{
+		return activeCurrency;
+	}
+	
+	public void setActiveCurrency( String currency )
+	{
+		activeCurrency = currency;
+		updateWalletList();
 	}
 }
 
@@ -1040,6 +1334,7 @@ class BalanceRetriever implements Runnable
 	public static final int MESSAGE_STATUS_NETWORK = 2;
 	public static final int MESSAGE_STATUS_JSON= 3;
 	public static final int MESSAGE_STATUS_PARSE = 4;
+	public static final int MESSAGE_STATUS_MISSING_TX = 5;
 	
 
 	public static final double SATOSHIS_PER_BITCOIN = 100000000.0;
@@ -1148,7 +1443,7 @@ class BalanceRetriever implements Runnable
 				numberOfKeys = wallet.getActiveKeyCount();
 			}
 
-			updateHandler.sendMessage( updateHandler.obtainMessage(MESSAGE_SETLENGTH, numberOfKeys + 1, 0 ) );
+			updateHandler.sendMessage( updateHandler.obtainMessage(MESSAGE_SETLENGTH, numberOfKeys, 0 ) );
 			updateHandler.sendMessage( updateHandler.obtainMessage(MESSAGE_UPDATE ) );
 	
 			for ( Key key : wallet.keys)
@@ -1177,7 +1472,15 @@ class BalanceRetriever implements Runnable
 			for ( prevout previousOut : pendingDebits )
 			{
 				tx matchingTx = getMatchingTx( previousOut.prevTxHash, previousOut.rec );
-				balance -= matchingTx.value;
+				
+				if ( matchingTx != null )
+				{
+					balance -= matchingTx.value;
+				}
+				else
+				{
+					// not sure how this can happen, but it happened once for a user, so handle it here
+				}
 				
 				tx outputTx = getFirstNonMatchingTx( previousOut.txhash, wallet.keys );
 				if ( outputTx != null)
@@ -1206,10 +1509,19 @@ class BalanceRetriever implements Runnable
 		}
 
 		updateHandler.sendMessage( updateHandler.obtainMessage(MESSAGE_FINISHED, status, 0 ) );
-		wallet.balance = balance;
-		wallet.lastUpdated = new Date();
-		wallet.transactions = new Transaction[transactions.size()];
-		transactions.toArray( wallet.transactions );
+		
+		if ( status == MESSAGE_STATUS_SUCCESS )
+		{
+			if ( wallet.balance != 0 &&
+				 wallet.balance != balance )
+			{
+				wallet.notifyUser();
+			}
+			wallet.balance = balance;
+			wallet.lastUpdated = new Date();
+			wallet.transactions = new Transaction[transactions.size()];
+			transactions.toArray( wallet.transactions );
+		}
 	}
 
 	private void updateBalanceFromUrl( String url ) throws IOException, JSONException, java.text.ParseException
