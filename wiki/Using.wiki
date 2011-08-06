@@ -4,11 +4,11 @@ These steps are for beginner users, if you want to manually export your keys, or
 
 *Step 1: download the decoder*
 
-Go <a href="http://code.google.com/p/bitcoinwallet/downloads/list">here</a> and download the decoder executable for your platform.  You can also export your addresses using <a href="https://github.com/gavinandresen/bitcointools">bitcointools</a> or manually create a text file with all your addresses.
+Go <a href="http://code.google.com/p/bitcoinwallet/downloads/list">here</a> and download the decoder executable for your platform.  You can also export your addresses using <a href="https://github.com/gavinandresen/bitcointools">bitcointools</a> or <a href="https://github.com/joric/pywallet">pywallet</a> to manually create a text file with all your addresses.
 
 *Step 2: extract the keys*
 
-Run the decoder e.g.
+Run the decoder or python script e.g.
 {{{
 decode %appdata%\bitcoin\wallet.dat > keys.txt
 }}}
@@ -18,9 +18,11 @@ or
 ./decode ~/.bitcoin/wallet.dat > keys.txt
 }}}
 
-Examine the keys.txt to ensure it only contains public key address hashes.  These should start with '1' and should be 33 or 34 characters long. 
+{{{
+pywallet.py --dump-wallet > keys.txt
+}}]
 
-*Note* If you do not wish to use my tool - you can use [https://github.com/joric/pywallet pywallet] to extract keys, or manually copy and paste the keys from your bitcoin client.
+Examine the keys.txt - it should start with '1' and should be 33 or 34 characters long.   If you've used pywallet then consider removing the private keys before copying to your phone (for security!)
 
 *Step 3: Upload the keys*
 
