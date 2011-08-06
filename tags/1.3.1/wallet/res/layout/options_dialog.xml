@@ -1,0 +1,10 @@
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+              android:id="@+id/layout_root"
+              android:orientation="horizontal"
+              android:layout_width="fill_parent"
+              android:layout_height="fill_parent"
+              android:padding="10dp"
+              >
+    <TextView android:layout_width="wrap_content" android:id="@+id/textView1" android:layout_height="fill_parent" android:layout_alignBottom="@+id/currencySpinner" android:layout_alignTop="@+id/currencySpinner" android:gravity="center_vertical" android:text="Currency" android:textSize="8pt"></TextView>
+    <Spinner android:layout_width="wrap_content" android:layout_height="wrap_content" android:id="@+id/currencySpinner" android:layout_toRightOf="@+id/textView1"></Spinner>
+</RelativeLayout>
