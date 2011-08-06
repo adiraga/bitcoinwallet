@@ -19,7 +19,9 @@ package net.phase.wallet;
 import java.text.DecimalFormat;
 
 import android.app.Activity;
+import android.content.Intent;
 import android.graphics.Color;
+import android.net.Uri;
 import android.os.Bundle;
 import android.os.Parcelable;
 import android.text.format.DateFormat;
@@ -27,6 +29,7 @@ import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.View.OnClickListener;
 import android.widget.BaseAdapter;
 import android.widget.ListView;
 import android.widget.TextView;
@@ -81,6 +84,9 @@ class TransactionAdapter extends BaseAdapter
 		DecimalFormat df = new DecimalFormat("0.00");
 		txInText.setTextColor( Color.BLACK );
 		txOutText.setTextColor( Color.RED );
+
+		v.setTag(transactions[position]);
+		v.setOnClickListener( context );
 
 		switch ( layoutStyle )
 		{
@@ -149,13 +155,13 @@ class TransactionAdapter extends BaseAdapter
 		
 		txTimeTextView.setTextColor( Color.GRAY );
 		txTimeTextView.setTextSize( 10 );
-		txTimeTextView.setText( DateFormat.format("h:mmaa", transactions[position].date ) );
+		txTimeTextView.setText( DateFormat.format("kk:mm", transactions[position].date ) );
 
 		return v;
 	}
 }
 
-public class TransactionsActivity extends Activity
+public class TransactionsActivity extends Activity implements OnClickListener
 {
 	private Transaction [] transactions;
 
@@ -199,4 +205,13 @@ public class TransactionsActivity extends Activity
         view.setAdapter( adapter );
         Log.d("transaction","finish");
     }
+
+	@Override
+	public void onClick(View v)
+	{
+		Transaction tx = (Transaction) v.getTag();
+
+		Uri uri = Uri.parse( "http://blockexplorer.com/address/" + tx.to );
+		startActivity( new Intent( Intent.ACTION_VIEW, uri ) );
+	}
 }
