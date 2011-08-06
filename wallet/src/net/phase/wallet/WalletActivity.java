@@ -49,11 +49,7 @@ import org.json.JSONObject;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.Dialog;
-import android.app.Notification;
-import android.app.NotificationManager;
-import android.app.PendingIntent;
 import android.app.ProgressDialog;
-import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
@@ -118,6 +114,10 @@ class Currency implements Runnable
 			{
 				lastResult = new JSONObject( EntityUtils.toString( response.getEntity() ) );
 				lastChecked = now.getTime();
+			}
+			else
+			{
+				WalletActivity.toastMessage("Warning: unable to get currency information");
 			}
 		}
 	}
@@ -289,7 +289,7 @@ class Transaction implements Parcelable, Comparable<Transaction>
 	}
 	protected void saveTransaction( PrintWriter out ) throws IOException
 	{
-		out.println( date );
+		out.println( date.getTime() );
 		out.println( amount );
 		out.println( from );
 		out.println( to );
@@ -297,7 +297,7 @@ class Transaction implements Parcelable, Comparable<Transaction>
 
 	protected Transaction( BufferedReader in ) throws NumberFormatException, IOException
 	{
-		this.date = new Date( in.readLine() );
+		this.date = WalletActivity.myParseDate( in.readLine() );
 		this.amount = Long.parseLong( in.readLine() );
 		this.from = in.readLine();
 		this.to = in.readLine();
@@ -431,7 +431,7 @@ class Wallet
 			out.println(version);
 			out.println(name);
 			out.println(balance);
-			out.println(lastUpdated);
+			out.println(lastUpdated.getTime());
 			
 			if ( transactions == null )
 			{
@@ -553,7 +553,7 @@ class Wallet
 			version = LEGACY_VERSION;
 		}
 		balance = Long.parseLong( in.readLine() );
-		lastUpdated = new Date(in.readLine());
+		lastUpdated = WalletActivity.myParseDate( in.readLine() );
 		
 		if ( version >= TRANSACTIONS_ADDED_VERSION )
 		{
@@ -757,6 +757,43 @@ public class WalletActivity extends Activity implements OnClickListener
 	private static final int DIALOG_FILE = 2;
 	private static final int DIALOG_OPTIONS = 3;
 	private String activeCurrency = "USD";
+	private static Context context;
+
+	public static Date myParseDate( String line )
+	{
+		Date d = null;
+
+		// make guesses - if it contains a space, it's probably the output of date.toString()
+		if ( line.indexOf(' ') == -1)
+		{
+			try
+			{
+				d = new Date( Long.parseLong( line ) );
+			}
+			catch (NumberFormatException e )
+			{
+				
+			}
+		}
+		else
+		{
+			try
+			{
+				d = new Date( line );
+			}
+			catch ( IllegalArgumentException e )
+			{
+			}
+		}
+		
+		if ( d == null )
+		{
+			// set it to 1970... not much we can do here
+			d = new Date( 0 );
+		}
+
+		return d;
+	}
 
 	private boolean savePreferences()
 	{
@@ -773,21 +810,24 @@ public class WalletActivity extends Activity implements OnClickListener
 		setActiveCurrency( pref.getString("currency", "USD" ) );
 	}
 
-	private void toastMessage( String message )
+	public static void toastMessage( String message )
 	{
-		Context context = getApplicationContext();
 		CharSequence text = message;
 		int duration = Toast.LENGTH_SHORT;
 
-		Toast toast = Toast.makeText(context, text, duration);
-		toast.show();
+		if ( context != null )
+		{
+			Toast toast = Toast.makeText(context, text, duration);
+			toast.show();
+		}
 	}
-		
+
 	/** Called when the activity is first created. */
     @Override
     public void onCreate(Bundle savedInstanceState)
     {
         super.onCreate(savedInstanceState);
+        WalletActivity.context = getApplicationContext(); 
         loadPreferences();
         try
         {
@@ -942,6 +982,7 @@ public class WalletActivity extends Activity implements OnClickListener
 		    	}
 		    	catch ( IOException e )
 		    	{
+		    		WalletActivity.toastMessage("Warning: unable to obtain currency information");
 		    	}
 		    	catch ( JSONException e )
 		    	{
