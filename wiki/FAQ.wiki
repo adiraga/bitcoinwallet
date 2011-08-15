@@ -51,6 +51,7 @@
   * either blockexplorer hasn't seen your transaction yet, this will happen for unconfirmed transactions (ones with 'unconfirmed/0' on them).  In addition, blockexplorer takes a few seconds after the first confirmation to database the transaction.
   * or, you have recently made a payment, then try forcing an update by long clicking on your wallet and clicking *Force Update*.  This makes the app query all your public keys and not just the ones with active transactions.
   * If you are behind a proxy it's possible that the long GET requests the application uses to query blockexplorer are being filtered - if this is the case then try reducing the 'addresses per request' in the options panel.
+  * Make sure you are using the latest version (1.4.0)
   * If all else fails, it's possible that your bitcoin client has created a new address to receive the change (which it does, from time to time) and your bitcoins have been sent to one of these addresses.  In this case, you need to re-export your keys for the application to know where your bitcoins are.
 
 <p>*Q* *I have a cool idea for a new feature!*
