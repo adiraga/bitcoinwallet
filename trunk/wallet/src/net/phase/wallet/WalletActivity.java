@@ -1,5 +1,5 @@
 /**
- * Copyright 2011 Will Harris will@phase.net
++ * Copyright 2011 Will Harris will@phase.net
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -636,11 +636,13 @@ class WalletAdapter extends BaseAdapter
 {
 	private Wallet [] wallets;
 	private WalletActivity context;
+	private int decimalpoints = 2;
 	
-	public WalletAdapter( WalletActivity c, Wallet [] w)
+	public WalletAdapter( WalletActivity c, Wallet [] w, int decimalpoints)
 	{
 		this.wallets = w;
 		this.context = c;
+		this.decimalpoints = decimalpoints;
 	}
 
 	@Override
@@ -682,7 +684,7 @@ class WalletAdapter extends BaseAdapter
 		v.setOnClickListener( context );
 		v.setTag(position);
 		
-		DecimalFormat df = new DecimalFormat("0.00");
+		DecimalFormat df = new DecimalFormat( WalletActivity.decimalString( decimalpoints ) );
 
 		TextView balanceTextView = (TextView) v.findViewById(R.id.walletBalanceText);
 		balanceTextView.setText(df.format( wallets[position].balance / BalanceRetriever.SATOSHIS_PER_BITCOIN ) );
@@ -750,6 +752,7 @@ public class WalletActivity extends Activity implements OnClickListener
 	public final static String TRANSACTIONS = "net.phase.wallet.transactions";
 	public final static String WALLETNAME = "net.phase.wallet.name";
 	public final static String TRANSACTIONSTYLE = "net.phase.wallet.transactionsstyle";
+	public final static String DECIMALPOINTS = "net.phase.wallet.decimal";
 	private ProgressDialog dialog;
 	private Wallet[] wallets;
 	private int nextWallet = -1;
@@ -758,6 +761,23 @@ public class WalletActivity extends Activity implements OnClickListener
 	private static final int DIALOG_OPTIONS = 3;
 	private String activeCurrency = "USD";
 	private static Context context;
+	private int maxlength = 40;
+	private int decimalpoints = 2;
+
+	public static String decimalString( int decimalpoints )
+	{
+		if ( decimalpoints == 0 )
+			return "0";
+
+		StringBuilder result = new StringBuilder( "0." );
+		
+		for ( int i = 0 ; i < decimalpoints; i++ )
+		{
+			result.append('0');
+		}
+		
+		return result.toString();
+	}
 
 	public static Date myParseDate( String line )
 	{
@@ -801,6 +821,8 @@ public class WalletActivity extends Activity implements OnClickListener
 		
 		SharedPreferences.Editor editor = pref.edit();
 		editor.putString("currency", activeCurrency );
+		editor.putInt("maxlength", maxlength);
+		editor.putInt("decimal", decimalpoints);
 		return editor.commit();
 	}
 
@@ -808,6 +830,8 @@ public class WalletActivity extends Activity implements OnClickListener
 	{
 		SharedPreferences pref = getPreferences( MODE_PRIVATE );
 		setActiveCurrency( pref.getString("currency", "USD" ) );
+		maxlength = pref.getInt("maxlength", 40 );
+		decimalpoints = pref.getInt("decimal", 2 );
 	}
 
 	public static void toastMessage( String message )
@@ -878,7 +902,7 @@ public class WalletActivity extends Activity implements OnClickListener
             setContentView( R.layout.main );
             ListView view = (ListView) findViewById( R.id.walletListView );
 
-            WalletAdapter adapter = new WalletAdapter( this, wallets );
+            WalletAdapter adapter = new WalletAdapter( this, wallets, decimalpoints );
 	        view.setAdapter( adapter );
 	        registerForContextMenu( view );
 	        try
@@ -905,7 +929,7 @@ public class WalletActivity extends Activity implements OnClickListener
 	    		nextWallet = 1;
 	    	}
 	
-	    	updateWalletBalance(wallets[0], true );
+	    	updateWalletBalance(wallets[0], true, maxlength );
     	}
     	else
     	{
@@ -972,7 +996,12 @@ public class WalletActivity extends Activity implements OnClickListener
 		    	}			    	
 		    	break;
 	    	case DIALOG_OPTIONS:
+	    		EditText reqText = (EditText) dialog.findViewById(R.id.reqText );
+
+	    		reqText.setText( Integer.toString( maxlength ) );
 		    	Spinner currencySpinner = (Spinner) dialog.findViewById(R.id.currencySpinner);
+		    	Spinner decimalSpinner = (Spinner) dialog.findViewById(R.id.decpointSpinner);
+
 		    	String current = getActiveCurrency();
 		    	String [] currencies = { current };
 
@@ -998,6 +1027,19 @@ public class WalletActivity extends Activity implements OnClickListener
 		    		}
 		    	}
 
+		    	Integer [] decimaloptions = { 0, 1, 2, 3, 4, 5 };
+		    	
+		    	ArrayAdapter<Integer> adapter2 = new ArrayAdapter<Integer>( this, android.R.layout.simple_spinner_item, decimaloptions );
+		    	decimalSpinner.setAdapter( adapter2 );
+		    	for ( int i = 0 ; i < decimaloptions.length; i++ )
+		    	{
+		    		if ( decimaloptions[i].intValue() == decimalpoints )
+		    		{
+		    			decimalSpinner.setSelection( i );
+		    			break;
+		    		}
+		    	}
+
 	    		break;
     	}
     }
@@ -1012,6 +1054,7 @@ public class WalletActivity extends Activity implements OnClickListener
 			Intent intent = new Intent(this, TransactionsActivity.class);
 			intent.putExtra( WALLETNAME, wallet.name);
 			intent.putExtra( TRANSACTIONSTYLE, style );
+			intent.putExtra( DECIMALPOINTS, decimalpoints );
 			Arrays.sort( wallet.transactions );
 
 			if ( style == TransactionAdapter.STYLE_NORMAL )
@@ -1112,12 +1155,23 @@ public class WalletActivity extends Activity implements OnClickListener
 		    	layout = inflater.inflate(R.layout.options_dialog, null );
 		    	
 		    	final Spinner currencySpinner = (Spinner) layout.findViewById(R.id.currencySpinner);
+		    	final EditText reqText = (EditText) layout.findViewById( R.id.reqText );
+		    	final Spinner decpointSpinner = (Spinner) layout.findViewById(R.id.decpointSpinner);
 		
 		    	builder.setView(layout);
 		    	builder.setPositiveButton("Ok", new DialogInterface.OnClickListener() {
 		            public void onClick(DialogInterface dialog, int id) {
 		                 String currency = (String) currencySpinner.getSelectedItem();
+		                 decimalpoints = ((Integer) decpointSpinner.getSelectedItem()).intValue();
 		                 setActiveCurrency( currency );
+		                 try
+		                 {
+		                	 maxlength = Integer.parseInt( reqText.getText().toString() );
+		                 }
+		                 catch ( RuntimeException e )
+		                 {
+		                	 toastMessage("Invalid number");
+		                 }
 		                 savePreferences();
 		            }
 		        });
@@ -1143,7 +1197,7 @@ public class WalletActivity extends Activity implements OnClickListener
     	switch (item.getItemId())
     	{
     		case R.id.updateItem:
-    			updateWalletBalance( wallets[info.position], false );
+    			updateWalletBalance( wallets[info.position], false, maxlength );
     			return true;
        		case R.id.removeItem:
     			removeWallet( wallets[info.position].name );
@@ -1190,9 +1244,9 @@ public class WalletActivity extends Activity implements OnClickListener
     	}
     }
 
-    public Thread updateWalletBalance( Wallet w, boolean fast)
+    public Thread updateWalletBalance( Wallet w, boolean fast, int maxlength )
     {
-    	BalanceRetriever br = new BalanceRetriever( progressHandler, w, fast );
+    	BalanceRetriever br = new BalanceRetriever( progressHandler, w, fast, maxlength);
 
     	dialog = new ProgressDialog( this );
     	dialog.setMessage( "Obtaining balance ("+w.name+")..." );
@@ -1257,7 +1311,7 @@ public class WalletActivity extends Activity implements OnClickListener
     						// code to refresh all wallets
     						if ( nextWallet > 0 && nextWallet < wallets.length )
     						{
-    							updateWalletBalance(wallets[nextWallet], false );
+    							updateWalletBalance(wallets[nextWallet], false, maxlength );
     							nextWallet++;
     						}
     						else
@@ -1300,7 +1354,7 @@ public class WalletActivity extends Activity implements OnClickListener
 
 		if ( v.getId() == R.id.updateButton )
 		{
-			updateWalletBalance( wallets[ i ], true );
+			updateWalletBalance( wallets[ i ], true, maxlength );
 		}
 		else
 		{
@@ -1383,7 +1437,7 @@ class BalanceRetriever implements Runnable
 
 	// number of transactions that can be queried from blockexplorer in each GET request
 	// this is limited by the maximum length of a GET request
-	private static final int MAX_LENGTH = 50;
+	private int maxlength = 40;
 	// balance is number of microbitcoins (a millionth of a bitcoin)
 	private long balance;
 	private Handler updateHandler;
@@ -1406,12 +1460,13 @@ class BalanceRetriever implements Runnable
 		return wallet.keys.length;
 	}
 
-	public BalanceRetriever( Handler updateHandler, Wallet wallet, boolean fast )
+	public BalanceRetriever( Handler updateHandler, Wallet wallet, boolean fast, int maxlength )
 	{
 		this.balance = 0;
 		this.updateHandler = updateHandler;
 		this.wallet = wallet;
 		this.fast = fast;
+		this.maxlength = maxlength;
 
 		transactions = new ArrayList<Transaction>();
 		transactionCache = new ArrayList<String>();
@@ -1489,7 +1544,7 @@ class BalanceRetriever implements Runnable
 	
 			for ( Key key : wallet.keys)
 			{
-				if ( ( i % MAX_LENGTH ) == (MAX_LENGTH - 1) )
+				if ( ( i % maxlength ) == (maxlength - 1) )
 				{
 					updateBalanceFromUrl( url.substring(0, url.length() - 1 ) );
 	
@@ -1521,6 +1576,7 @@ class BalanceRetriever implements Runnable
 				else
 				{
 					// not sure how this can happen, but it happened once for a user, so handle it here
+					Log.w("wallet", "could not retrieve previous tx for " + previousOut.prevTxHash + ":" + previousOut.rec );
 				}
 				
 				tx outputTx = getFirstNonMatchingTx( previousOut.txhash, wallet.keys );
@@ -1567,7 +1623,7 @@ class BalanceRetriever implements Runnable
 
 	private void updateBalanceFromUrl( String url ) throws IOException, JSONException, java.text.ParseException
 	{
-//		Log.i("balance", "fetching URL "+ url);
+		Log.i("balance", "fetching URL "+ url);
 		HttpClient client = new DefaultHttpClient();
 		HttpGet hg = new HttpGet( url );
 
@@ -1592,7 +1648,7 @@ class BalanceRetriever implements Runnable
 				// only process transaction if we haven't seen it before
 				if ( !transactionCache.contains( txHash ) )
 				{
-//					Log.i("balance", "Parsing txObject " + txHash );
+					Log.i("balance", "Parsing txObject " + txHash );
 					transactionCache.add( txHash );
 					// find the in transaction
 					JSONArray txsIn = txObject.getJSONArray("in");
@@ -1603,8 +1659,8 @@ class BalanceRetriever implements Runnable
 						JSONObject inRecord = txsIn.getJSONObject( i );
 						try
 						{
-							inKeyHash = inRecord.getString("address");
-	
+							inKeyHash = inRecord.optString("address");
+
 							// if one of our keys is there, we are paying :(
 							if ( Key.arrayContains(wallet.keys, inKeyHash ) )
 							{
@@ -1625,7 +1681,7 @@ class BalanceRetriever implements Runnable
 					for ( int i = 0; i < txsOut.length(); i++ )
 					{
 						JSONObject outRecord = txsOut.getJSONObject( i );
-						String outKeyHash = outRecord.getString("address");
+						String outKeyHash = outRecord.optString("address");
 						// convert to microbitcoins for accuracy
 						long value = (long) ( outRecord.getDouble( "value" ) * SATOSHIS_PER_BITCOIN );
 						// store the out transaction, this is used later on
@@ -1640,6 +1696,10 @@ class BalanceRetriever implements Runnable
 					}
 				}
 			}
+		}
+		else
+		{
+			Log.e("wallet", "Got " + response.getStatusLine().getStatusCode() + " back from HTTP GET");
 		}
 	}
 }
