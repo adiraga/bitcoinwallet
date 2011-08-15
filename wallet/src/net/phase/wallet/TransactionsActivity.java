@@ -44,12 +44,14 @@ class TransactionAdapter extends BaseAdapter
 	private Transaction [] transactions;
 	private TransactionsActivity context;
 	private int layoutStyle;
-
-	public TransactionAdapter( TransactionsActivity c, Transaction [] transactions, int layoutStyle )
+	private int decimalpoints = 2;
+	
+	public TransactionAdapter( TransactionsActivity c, Transaction [] transactions, int layoutStyle, int decimalpoints )
 	{
 		this.transactions = transactions;
 		this.layoutStyle = layoutStyle;
 		this.context = c;
+		this.decimalpoints = decimalpoints;
 	}
 
 	@Override
@@ -81,7 +83,7 @@ class TransactionAdapter extends BaseAdapter
 		TextView txOutText = (TextView) v.findViewById(R.id.txOutText);
 		txInText.setTextSize( 20 );
 		txOutText.setTextSize( 20 );
-		DecimalFormat df = new DecimalFormat("0.00");
+		DecimalFormat df = new DecimalFormat( WalletActivity.decimalString( decimalpoints ) );
 		txInText.setTextColor( Color.BLACK );
 		txOutText.setTextColor( Color.RED );
 
@@ -171,6 +173,7 @@ public class TransactionsActivity extends Activity implements OnClickListener
     {
     	Log.d("transaction", "start");
     	int style = getIntent().getExtras().getInt( WalletActivity.TRANSACTIONSTYLE );
+    	int decimalpoints = getIntent().getExtras().getInt( WalletActivity.DECIMALPOINTS );
         super.onCreate(savedInstanceState);
         setContentView( R.layout.txmain );
 
@@ -201,7 +204,7 @@ public class TransactionsActivity extends Activity implements OnClickListener
         }
 
         ListView view = (ListView) findViewById( R.id.transactionListView );
-        TransactionAdapter adapter = new TransactionAdapter( this, transactions, style );
+        TransactionAdapter adapter = new TransactionAdapter( this, transactions, style, decimalpoints );
         view.setAdapter( adapter );
         Log.d("transaction","finish");
     }
