@@ -20,7 +20,7 @@ or
 
 {{{
 pywallet.py --dump-wallet > keys.txt
-}}]
+}}}
 
 Examine the keys.txt - it should start with '1' and should be 33 or 34 characters long.   If you've used pywallet then consider removing the private keys before copying to your phone (for security!)
 
