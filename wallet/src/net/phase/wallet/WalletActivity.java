@@ -24,6 +24,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
+import java.io.StringReader;
 import java.net.URI;
 import java.text.DecimalFormat;
 import java.text.SimpleDateFormat;
@@ -31,6 +32,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.Iterator;
+import java.util.StringTokenizer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -578,6 +580,42 @@ class Wallet
 		keysArray.toArray( keys );
 	}
 	
+	public Wallet(String name, String inputkeys, WalletActivity parentActivity) throws IOException, ParseException
+	{
+		this.activity = parentActivity;
+		this.name = name;
+		boolean foundKey = false;
+		ArrayList<Key> keysArray = new ArrayList<Key>();
+		Pattern p = Pattern.compile( "\\W(1[1-9A-HJ-NP-Za-km-z]{27,34})" );
+		
+		for (String keyHash : inputkeys.split(" "))
+		{
+			// add a space at the start to make the regex work more easily
+			keyHash = " " + keyHash;
+
+			Matcher m = p.matcher( keyHash );
+
+			if ( m.find() )
+			{
+				Log.d("balance", "Key " + m.group(1) + " found");
+				keysArray.add( new Key( m.group( 1 ) ) );
+				foundKey = true;
+			}
+		}
+
+		if ( foundKey )
+		{
+			keys = new Key[ keysArray.size() ];
+			keysArray.toArray( keys );
+			lastUpdated = new Date();
+			balance = 0;
+		}
+		else
+		{
+			throw new ParseException("Did not find any keys");
+		}
+	}
+
 	public static Wallet [] getStoredWallets( Context context, WalletActivity activity ) throws IOException
 	{
 		ArrayList<Wallet> walletsArray = new ArrayList<Wallet>();
@@ -759,6 +797,7 @@ public class WalletActivity extends Activity implements OnClickListener
 	private static final int DIALOG_URL	= 1;
 	private static final int DIALOG_FILE = 2;
 	private static final int DIALOG_OPTIONS = 3;
+	private static final int DIALOG_PASTE = 4;
 	private String activeCurrency = "USD";
 	private static Context context;
 	private int maxlength = 40;
@@ -995,6 +1034,11 @@ public class WalletActivity extends Activity implements OnClickListener
 			    	fileSpinner.setAdapter( adapter );
 		    	}			    	
 		    	break;
+	    	case DIALOG_PASTE:
+	    		EditText keyText = (EditText) dialog.findViewById(R.id.keysText );
+
+	    		keyText.setText("");
+	    		break;
 	    	case DIALOG_OPTIONS:
 	    		EditText reqText = (EditText) dialog.findViewById(R.id.reqText );
 
@@ -1151,6 +1195,36 @@ public class WalletActivity extends Activity implements OnClickListener
 		           }
 		       });
 		    	break;
+	    	case DIALOG_PASTE:
+		    	layout = inflater.inflate(R.layout.paste_dialog, null );
+		    	
+		    	final EditText keysText = (EditText) layout.findViewById(R.id.keysText);
+		    	final EditText nameEditText3 = (EditText) layout.findViewById(R.id.walletNameText);
+		    	
+		    	builder.setView(layout);
+		    	builder.setPositiveButton("Ok", new DialogInterface.OnClickListener() {
+		            public void onClick(DialogInterface dialog, int id) {
+		                 String keys = keysText.getText().toString();
+		                 String name = nameEditText3.getText().toString();
+		                 
+		                 try
+		                 {
+		                	 Wallet w = new Wallet(name, keys, parentActivity );
+		                	 addWallet( w );
+		                 }
+		                 catch (Exception e)
+		                 {
+		                	 toastMessage(e.getMessage());
+		                 }
+		            }
+		        });
+
+		    	builder.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
+		           public void onClick(DialogInterface dialog, int id) {
+		                dialog.dismiss();
+		           }
+		       });
+		    	break;
 	    	case DIALOG_OPTIONS:
 		    	layout = inflater.inflate(R.layout.options_dialog, null );
 		    	
@@ -1228,6 +1302,9 @@ public class WalletActivity extends Activity implements OnClickListener
     			return true;
     		case R.id.importFile:
     			showDialog( DIALOG_FILE );
+    			return true;
+    		case R.id.importPaste:
+    			showDialog( DIALOG_PASTE );
     			return true;
     		case R.id.updateAllItem:
     			updateAll();
@@ -1506,7 +1583,7 @@ class BalanceRetriever implements Runnable
 		balance = 0;
 		int i = 0;
 		StringBuffer url = new StringBuffer( baseUrl );
-		int status = 0;
+		int status = MESSAGE_STATUS_SUCCESS;
 		boolean fastKeyFound = false;
 		
 		for (Key k : wallet.keys )
@@ -1572,25 +1649,24 @@ class BalanceRetriever implements Runnable
 				if ( matchingTx != null )
 				{
 					balance -= matchingTx.value;
+
+					tx outputTx = getFirstNonMatchingTx( previousOut.txhash, wallet.keys );
+					if ( outputTx != null)
+					{
+						transactions.add( new Transaction( previousOut.date, -matchingTx.value, previousOut.addr, outputTx.outKeyHash ) );
+					}
+					else
+					{
+						transactions.add( new Transaction( previousOut.date, -matchingTx.value, previousOut.addr, "unknown" ) );
+					}
 				}
 				else
 				{
+					status = MESSAGE_STATUS_MISSING_TX;
 					// not sure how this can happen, but it happened once for a user, so handle it here
 					Log.w("wallet", "could not retrieve previous tx for " + previousOut.prevTxHash + ":" + previousOut.rec );
 				}
-				
-				tx outputTx = getFirstNonMatchingTx( previousOut.txhash, wallet.keys );
-				if ( outputTx != null)
-				{
-					transactions.add( new Transaction( previousOut.date, -matchingTx.value, previousOut.addr, outputTx.outKeyHash ) );
-				}
-				else
-				{
-					transactions.add( new Transaction( previousOut.date, -matchingTx.value, previousOut.addr, "unknown" ) );
-				}
 			}
-
-			status = MESSAGE_STATUS_SUCCESS;			
 		}
 		catch (IOException e)
 		{
