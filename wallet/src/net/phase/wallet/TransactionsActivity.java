@@ -206,6 +206,7 @@ public class TransactionsActivity extends Activity implements OnClickListener
         ListView view = (ListView) findViewById( R.id.transactionListView );
         TransactionAdapter adapter = new TransactionAdapter( this, transactions, style, decimalpoints );
         view.setAdapter( adapter );
+        WalletActivity.dismissProgress();
         Log.d("transaction","finish");
     }
 
